@@ -114,7 +114,16 @@ Decidido pelo Flavio e pelo Bernardo em 2026-10-24 (balanceamento):
 - **Sedes e filiais em pontos reais do mapa:** só adicionamos um computador (ponto de interação do RLS, com função própria no menu do computador). A primeira sede fica no ponto "Logistics" (`-126.627, 36.444, 122.440`); o prédio de tijolo das Dockyards fica para depois.
 - **Tenda no lugar da barreira** na sede (spawn e esconder em tempo de execução), depois que o computador funcionar.
 
-Ainda a decidir com o Bernardo: o caminhão ocupa uma vaga de van?; o salário do motorista e os números do caminhão; o preço de abrir a empresa; a regra do limite da empresa, (a) por nível ou (b) pela soma das vagas das filiais (o agente recomenda b: o nível libera filiais maiores e upgrades); o XP por nível; o preço das filiais e as vagas de cada uma; se a frota ganha o bônus de pagamento do nível de Logística do jogador (o agente sugere que não: a empresa tem o bônus dela).
+Decidido pelo Flavio e pelo Bernardo em 2026-10-24 (segunda rodada):
+
+- **Vaga é vaga.** Van e caminhão ocupam uma vaga cada. O limite é o das vagas da filial (a regra **b**).
+- **Primeira filial: umas 5 vagas** (10 pareceu muito; o número ainda é exemplo).
+- **Caminhões limitados por motoristas.** Na primeira filial dá para ter 5 caminhões, se houver 5 motoristas. O custo do motorista é a desvantagem do caminhão.
+- **Motoristas pela árvore de habilidades da empresa.** Exemplo: ao comprar a filial, 1 motorista (1 caminhão e 4 vans); a árvore libera mais motoristas com o tempo, e o jogador pode vender uma van para pôr outro caminhão.
+- **Venda de van:** segue o mercado, como a compra. O valor parte do preço pago, com desvalorização, e passa pelo índice de venda do RLS (o RLS paga 95% do índice na venda, ou 85% quando o mercado está abaixo de 0,85).
+- **Árvore de habilidades:** viável. No RLS ela é só dados: um JSON por tipo de negócio em `gameplay/overhaul/business/skillTrees/` com nós (custo em dinheiro, custo em XP da empresa, nível máximo, dependências), e `business/skillTree.lua` cobra e grava. Caminho a escolher pelo agente: registrar a empresa como um tipo de negócio do RLS (ganha a tela da árvore, a conta e o computador prontos, mas fica preso aos internos dos negócios do RLS) ou uma árvore própria no mesmo formato, dentro do app do Beamazon.
+
+Ainda a decidir com o Bernardo: o salário do motorista e os números do caminhão; o preço de abrir a empresa; quanto a van desvaloriza (por tempo, por entregas, ou as duas); o XP por nível; o preço das filiais e as vagas de cada uma; se a frota ganha o bônus de pagamento do nível de Logística do jogador (o agente sugere que não: a empresa tem o bônus dela).
 
 ## Integração com o RLS
 

@@ -91,4 +91,4 @@ Teste da lógica sem o jogo: `cd tests && npm install && npm test` roda os módu
 
 - Os números de balanceamento (metas iniciais em `docs/plano.md`), inclusive os da empresa e das filiais.
 
-Decididas (2026-10-24, detalhes em `docs/plano.md`, "Empresa de entregas"): localização **A** (as vans atendem o mapa todo); pessoa física até 3 vans; acima disso, uma empresa com XP próprio e árvore de upgrades; filial é um lugar no mapa que soma vagas; a frota dá muito pouco XP de Logística ao jogador.
+Decididas (2026-10-24, detalhes em `docs/plano.md`, "Empresa de entregas"): localização **A** (as vans atendem o mapa todo); pessoa física até 3 vans; acima disso, uma empresa com XP próprio e árvore de upgrades; filial é um lugar no mapa que soma vagas; a frota dá muito pouco XP de Logística ao jogador. Vaga é vaga (van ou caminhão); caminhão precisa de motorista, e a árvore de habilidades da empresa libera motoristas; a van vendida segue o mercado do RLS, com desvalorização.
