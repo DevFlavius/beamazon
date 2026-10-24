@@ -156,6 +156,27 @@
 
         <div class="card">
           <div class="card-top">
+            <h2>Automation</h2>
+          </div>
+          <div v-if="company.hasManager" class="row">
+            <span>Fleet manager · services below 40% · {{ money(company.managerWagePerHour) }}/h</span>
+            <button class="small-button" :class="{ active: company.settings?.autoService }" type="button" :disabled="busy" @click="act(`setAutoService(${!company.settings?.autoService})`, company.settings?.autoService ? 'Fleet manager paused.' : 'Fleet manager active.')">
+              {{ company.settings?.autoService ? 'On' : 'Off' }}
+            </button>
+          </div>
+          <div v-if="company.hasSalesTeam" class="row">
+            <span>Sales team · accepts contracts</span>
+            <button class="small-button" :class="{ active: company.settings?.autoContracts }" type="button" :disabled="busy" @click="act(`setAutoContracts(${!company.settings?.autoContracts})`, company.settings?.autoContracts ? 'Sales team paused.' : 'Sales team active.')">
+              {{ company.settings?.autoContracts ? 'On' : 'Off' }}
+            </button>
+          </div>
+          <div v-if="!company.hasManager && !company.hasSalesTeam" class="hint">
+            Unlock Fleet Manager and Sales Team in Upgrades.
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-top">
             <h2>Drivers</h2>
             <strong>{{ drivers.length }} / {{ company.driverSlots }}</strong>
           </div>
