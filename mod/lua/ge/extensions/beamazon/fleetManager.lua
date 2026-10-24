@@ -222,7 +222,7 @@ local function getTruckPrice()
   return math.floor(balance.truckPrice * offer * beamazon_adapter.getVehicleBuyMultiplier() * vehicleDiscount() + 0.5)
 end
 
--- The bucket for the current hour, appending a new one when the hour rolls over and trimming old ones.
+-- The bucket for the current hour, appending a new one when the hour rolls over and dropping the ones older than historyHours.
 local function currentBucket()
   if not fleet then return nil end
   fleet.history = fleet.history or {}
@@ -241,14 +241,15 @@ local function currentBucket()
       net = 0,
     }
     table.insert(fleet.history, last)
-    while #fleet.history > balance.historyHours do
-      table.remove(fleet.history, 1)
-    end
+  end
+  -- hours with no activity have no bucket, so the list is trimmed by age, not by length
+  while fleet.history[1] and fleet.history[1].hour <= hour - balance.historyHours * 3600 do
+    table.remove(fleet.history, 1)
   end
   return last
 end
 
--- Records a vehicle or HQ purchase (amount > 0) or sale (amount < 0) in the current hour's finance bucket.
+-- Records a purchase (amount > 0: vehicle, HQ, company upgrade) or a sale (amount < 0) in the current hour's finance bucket.
 local function recordPurchase(amount)
   local bucket = currentBucket()
   if not bucket then return end
@@ -465,7 +466,7 @@ local function onBeamazonSave(saveContext)
   beamazon_adapter.writeSaveFile(saveContext, saveFileName, fleet)
 end
 
--- The list of hour buckets (up to balance.historyHours), or {} when not loaded.
+-- The hour buckets of the last balance.historyHours hours, oldest first, or {} when not loaded.
 local function getHistory()
   return fleet and fleet.history or {}
 end

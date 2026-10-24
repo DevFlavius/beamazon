@@ -101,6 +101,7 @@ local function buyUpgrade(id)
     log('W', logTag, string.format('buyUpgrade %s: not enough money ($%d)', id, price))
     return false, 'notEnoughMoney'
   end
+  beamazon_fleetManager.recordPurchase(price)
   c.xp = c.xp - xpCost
   c.upgrades[id] = level + 1
   log('I', logTag, string.format('buyUpgrade: %s level %d for $%d and %d XP', node.title, level + 1, price, xpCost))

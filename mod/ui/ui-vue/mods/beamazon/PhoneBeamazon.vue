@@ -150,7 +150,7 @@
             <div class="row"><span>Wear</span><span>{{ money(historyTotals.wear) }}</span></div>
             <div class="row"><span>Commission</span><span>{{ money(historyTotals.commission) }}</span></div>
             <div class="row"><span>Driver wages</span><span>{{ money(historyTotals.wages) }}</span></div>
-            <div class="row"><span>Vehicles bought/sold</span><span>{{ money(historyTotals.purchases) }}</span></div>
+            <div class="row"><span>Purchases and sales</span><span>{{ money(historyTotals.purchases) }}</span></div>
             <div class="row"><strong>Net</strong><strong>{{ money(historyTotals.net) }}</strong></div>
           </div>
 
@@ -174,7 +174,6 @@
         </div>
 
         <div v-else class="empty-state">
-          <div class="empty-title">No deliveries yet</div>
           <p>No deliveries yet.</p>
         </div>
       </template>

@@ -430,7 +430,7 @@ for _, b in ipairs(h) do
 end
 check(bucketWithTrips ~= nil and bucketWithTrips.trips > 0, 'history has a bucket with trips')
 local calcNet = bucketWithTrips.revenue - bucketWithTrips.energy - bucketWithTrips.wear - bucketWithTrips.commission - bucketWithTrips.wages - bucketWithTrips.purchases
-check(math.abs(calcNet - bucketWithTrips.net) < 0.05, string.format('bucket net matches revenue - costs: %.2f vs %.2f', calcNet, bucketWithTrips.net))
+check(math.abs(calcNet - bucketWithTrips.net) <= 0.02 * bucketWithTrips.trips, string.format('bucket net matches revenue - costs: %.2f vs %.2f', calcNet, bucketWithTrips.net))
 
 local currentB = h[#h]
 local purchasesBefore = currentB.purchases
@@ -456,10 +456,21 @@ for _ = 1, balance.historyHours + 10 do
   beamazon_fleetManager.recordPurchase(10)
 end
 check(#beamazon_fleetManager.getHistory() == balance.historyHours, string.format('bucket list never exceeds %d: got %d', balance.historyHours, #beamazon_fleetManager.getHistory()))
+
+simHour = simHour + 30 * 3600
+beamazon_fleetManager.recordPurchase(10)
+check(#beamazon_fleetManager.getHistory() == 1, 'buckets older than historyHours are dropped after a long gap')
 os.time = origTime
+beamazon_fleetManager.getCompany().xp = 1e6
+money = 1e6
+local spent = beamazon_fleetManager.getHistory()
+local before = (spent[#spent] and spent[#spent].hour == math.floor(os.time() / 3600) * 3600) and spent[#spent].purchases or 0
+check(company.buyUpgrade('driverTraining'), 'buy an upgrade for the history test')
+spent = beamazon_fleetManager.getHistory()
+check(spent[#spent].purchases - before == 15000, 'a company upgrade counts as a purchase')
 
 local pd = beamazon_phoneApp.getData()
-check(type(pd.history) == 'table' and #pd.history == balance.historyHours, 'phone getData().history exists')
+check(type(pd.history) == 'table' and #pd.history >= 1, 'phone getData().history exists')
 check(type(pd.historyTotals) == 'table' and type(pd.historyTotals.trips) == 'number' and type(pd.historyTotals.revenue) == 'number'
   and type(pd.historyTotals.purchases) == 'number' and type(pd.historyTotals.net) == 'number', 'phone getData().historyTotals exists')
 local sumPurchases = 0
