@@ -80,4 +80,14 @@ return {
     dockyards = {name = 'Beamazon Dockyards', price = 60000, slots = 4, companyLevel = 3},
   },
   branchOrder = {'dockyards'},   -- display order
+
+  -- PROVISIONAL (agent, 2026-10-24 night): per-vehicle upgrades, waiting for Flavio and Bernardo.
+  vehicleUpgrades = {
+    {id = 'motor', title = 'Efficient Motor', description = 'Uses 10% less energy.', maxLevel = 3, cost = {base = 1000, increment = 1000}, effect = {energy = -0.10}},
+    {id = 'battery', title = 'Big Battery', description = 'Fewer charging stops: trips 5% shorter.', maxLevel = 3, cost = {base = 1500, increment = 1500}, effect = {tripTime = -0.05}},
+    {id = 'cargo', title = 'Bigger Cargo Box', description = '+1 parcel per trip.', maxLevel = 2, cost = {base = 2000, increment = 2000}, effect = {parcels = 1}},
+    {id = 'routing', title = 'Route Computer', description = 'Every trip pays 3% more.', maxLevel = 3, cost = {base = 2000, increment = 2000}, effect = {revenue = 0.03}},
+  },
+  truckUpgradeCostMultiplier = 2,
+  upgradeResaleShare = 0.5,       -- share of the upgrade money a sale gives back
 }
