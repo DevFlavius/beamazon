@@ -33,6 +33,7 @@ local function newFleet()
     -- truckSeconds and truckNet are the same for trucks with a driver (kept apart so the van rate stays comparable).
     totals = {trips = 0, revenue = 0, costs = 0, net = 0, vanSeconds = 0, timedNet = 0, truckSeconds = 0, truckNet = 0},
     company = {hq = false},
+    history = {},
   }
 end
 
@@ -73,6 +74,30 @@ local function loadFleet()
   if type(data.company) == 'table' and data.company.hq == true then
     loaded.company = data.company
     loaded.company.foundedAt = tonumber(data.company.foundedAt)
+  end
+  if type(data.history) == 'table' then
+    local history = {}
+    for _, b in ipairs(data.history) do
+      if type(b) == 'table' and type(b.hour) == 'number' then
+        table.insert(history, {
+          hour = b.hour,
+          trips = tonumber(b.trips) or 0,
+          revenue = tonumber(b.revenue) or 0,
+          energy = tonumber(b.energy) or 0,
+          wear = tonumber(b.wear) or 0,
+          commission = tonumber(b.commission) or 0,
+          wages = tonumber(b.wages) or 0,
+          purchases = tonumber(b.purchases) or 0,
+          net = tonumber(b.net) or 0,
+        })
+      end
+    end
+    while #history > balance.historyHours do
+      table.remove(history, 1)
+    end
+    loaded.history = history
+  else
+    loaded.history = {}
   end
   return loaded
 end
@@ -197,6 +222,41 @@ local function getTruckPrice()
   return math.floor(balance.truckPrice * offer * beamazon_adapter.getVehicleBuyMultiplier() * vehicleDiscount() + 0.5)
 end
 
+-- The bucket for the current hour, appending a new one when the hour rolls over and trimming old ones.
+local function currentBucket()
+  if not fleet then return nil end
+  fleet.history = fleet.history or {}
+  local hour = math.floor(os.time() / 3600) * 3600
+  local last = fleet.history[#fleet.history]
+  if not last or last.hour ~= hour then
+    last = {
+      hour = hour,
+      trips = 0,
+      revenue = 0,
+      energy = 0,
+      wear = 0,
+      commission = 0,
+      wages = 0,
+      purchases = 0,
+      net = 0,
+    }
+    table.insert(fleet.history, last)
+    while #fleet.history > balance.historyHours do
+      table.remove(fleet.history, 1)
+    end
+  end
+  return last
+end
+
+-- Records a vehicle or HQ purchase (amount > 0) or sale (amount < 0) in the current hour's finance bucket.
+local function recordPurchase(amount)
+  local bucket = currentBucket()
+  if not bucket then return end
+  local val = tonumber(amount) or 0
+  bucket.purchases = bucket.purchases + val
+  bucket.net = bucket.net - val
+end
+
 -- True, or false and the reason: 'careerInactive', 'vanLimit' or 'notEnoughMoney'.
 local function buyVan()
   if not ensureLoaded() then
@@ -215,6 +275,7 @@ local function buyVan()
   fleet.nextVanId = id + 1
   fleet.vanOffer = rollVanOffer()
   table.insert(fleet.vans, {id = id, kind = 'van', name = 'Van ' .. id, trips = 0, net = 0, tripElapsed = 0, pricePaid = price})
+  recordPurchase(price)
   log('I', logTag, string.format('buyVan: Van %d bought for $%d (fleet: %d, next offer $%d)', id, price, #fleet.vans, getVanPrice()))
   return true
 end
@@ -242,6 +303,7 @@ local function buyTruck()
   fleet.nextVanId = id + 1
   fleet.truckOffer = rollVanOffer()
   table.insert(fleet.vans, {id = id, kind = 'truck', name = 'Truck ' .. id, trips = 0, net = 0, tripElapsed = 0, pricePaid = price})
+  recordPurchase(price)
   log('I', logTag, string.format('buyTruck: Truck %d bought for $%d (fleet: %d, next offer $%d)', id, price, #fleet.vans, getTruckPrice()))
   return true
 end
@@ -274,6 +336,7 @@ local function sellVan(id)
   local value = getSellValue(van)
   if not beamazon_adapter.addMoney(value, 'Beamazon: sold ' .. van.name) then return false, 'careerInactive' end
   table.remove(fleet.vans, index)
+  recordPurchase(-value)
   log('I', logTag, string.format('sellVan: %s sold for $%d (fleet: %d)', van.name, value, #fleet.vans))
   return true, value
 end
@@ -295,6 +358,7 @@ local function buyHq()
     return false, 'notEnoughMoney'
   end
   fleet.company = {hq = true, foundedAt = os.time(), xp = 0, xpEarned = 0, upgrades = {}, drivers = {}, nextDriverId = 1}
+  recordPurchase(balance.hqPrice)
   log('I', logTag, string.format('buyHq: company founded for $%d (van limit: %d)', balance.hqPrice, getVanLimit()))
   return true
 end
@@ -339,6 +403,16 @@ local function recordTrip(van, result, driver)
     if driver then beamazon_company.recordDriverTrip(driver, result.wage or 0) end
   else
     fleet.totals.timedNet = fleet.totals.timedNet + result.net
+  end
+  local bucket = currentBucket()
+  if bucket then
+    bucket.trips = bucket.trips + 1
+    bucket.revenue = bucket.revenue + result.revenue
+    bucket.energy = bucket.energy + result.energy
+    bucket.wear = bucket.wear + result.wear
+    bucket.commission = bucket.commission + result.commission
+    bucket.wages = bucket.wages + (result.wage or 0)
+    bucket.net = bucket.net + result.net
   end
   if beamazon_company then beamazon_company.addXpFromProfit(result.net) end
   log('D', logTag, string.format('%s delivered %d parcel(s) over %.1f km: revenue $%.2f, energy $%.2f, wear $%.2f, commission $%.2f, net $%.2f',
@@ -391,6 +465,11 @@ local function onBeamazonSave(saveContext)
   beamazon_adapter.writeSaveFile(saveContext, saveFileName, fleet)
 end
 
+-- The list of hour buckets (up to balance.historyHours), or {} when not loaded.
+local function getHistory()
+  return fleet and fleet.history or {}
+end
+
 local function onExtensionLoaded()
   ensureLoaded()
 end
@@ -399,6 +478,8 @@ M.ensureLoaded = ensureLoaded
 M.getVans = getVans
 M.getTotals = getTotals
 M.getCompany = getCompany
+M.getHistory = getHistory
+M.recordPurchase = recordPurchase
 M.countKind = countKind
 M.getNetPerTruckHour = getNetPerTruckHour
 M.getTruckPrice = getTruckPrice

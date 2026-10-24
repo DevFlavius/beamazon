@@ -61,4 +61,7 @@ return {
 
   -- While the player is away, the fleet keeps working up to this many real hours.
   offlineCapHours = 2,             -- lowered from 8 (Flavio, 2026-10-24): at ~$5,000 per van-hour, 8 h paid up to $120,000 with 3 vans
+
+  -- How many hours of fleet finance history to keep (shown in the phone's Finances tab).
+  historyHours = 24,
 }

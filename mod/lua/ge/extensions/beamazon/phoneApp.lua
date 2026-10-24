@@ -66,6 +66,27 @@ local function getData()
   for _, van in ipairs(beamazon_fleetManager.getVans()) do
     table.insert(vans, vanRow(van))
   end
+  local history = beamazon_fleetManager.getHistory()
+  local historyTotals = {
+    trips = 0,
+    revenue = 0,
+    energy = 0,
+    wear = 0,
+    commission = 0,
+    wages = 0,
+    purchases = 0,
+    net = 0,
+  }
+  for _, bucket in ipairs(history) do
+    historyTotals.trips = historyTotals.trips + (bucket.trips or 0)
+    historyTotals.revenue = historyTotals.revenue + (bucket.revenue or 0)
+    historyTotals.energy = historyTotals.energy + (bucket.energy or 0)
+    historyTotals.wear = historyTotals.wear + (bucket.wear or 0)
+    historyTotals.commission = historyTotals.commission + (bucket.commission or 0)
+    historyTotals.wages = historyTotals.wages + (bucket.wages or 0)
+    historyTotals.purchases = historyTotals.purchases + (bucket.purchases or 0)
+    historyTotals.net = historyTotals.net + (bucket.net or 0)
+  end
   return {
     active = true,
     vanPrice = beamazon_fleetManager.getVanPrice(),
@@ -76,6 +97,8 @@ local function getData()
     totals = beamazon_fleetManager.getTotals(),
     netPerVanHour = beamazon_fleetManager.getNetPerVanHour(),
     vans = vans,
+    history = history,
+    historyTotals = historyTotals,
   }
 end
 
