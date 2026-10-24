@@ -58,6 +58,9 @@ local function loadFleet()
       van.trips = tonumber(van.trips) or 0
       van.net = tonumber(van.net) or 0
       van.kind = van.kind == 'truck' and 'truck' or 'van'
+      van.condition = math.max(balance.minCondition or 0, math.min(1, tonumber(van.condition) or 1))
+      van.brokenFor = math.max(tonumber(van.brokenFor) or 0, 0)
+      van.breakdowns = tonumber(van.breakdowns) or 0
       table.insert(loaded.vans, van)
       loaded.nextVanId = math.max(loaded.nextVanId, van.id + 1)
     end
@@ -88,6 +91,7 @@ local function loadFleet()
           commission = tonumber(b.commission) or 0,
           wages = tonumber(b.wages) or 0,
           purchases = tonumber(b.purchases) or 0,
+          repairs = tonumber(b.repairs) or 0,
           net = tonumber(b.net) or 0,
         })
       end
@@ -168,10 +172,11 @@ local function getNetPerVanHour()
   return totals.timedNet / (totals.vanSeconds / 3600)
 end
 
--- Called by fleetSim each time the fleet advances by dt fleet seconds, with how many trucks had a driver.
-local function addWorkTime(dt, workingTrucks)
+-- Called by fleetSim each time the fleet advances by dt fleet seconds, with how many trucks and vans were working.
+local function addWorkTime(dt, workingTrucks, workingVans)
   if not fleet then return end
-  fleet.totals.vanSeconds = fleet.totals.vanSeconds + dt * countKind('van')
+  local vans = workingVans or countKind('van')
+  fleet.totals.vanSeconds = fleet.totals.vanSeconds + dt * vans
   fleet.totals.truckSeconds = fleet.totals.truckSeconds + dt * (workingTrucks or 0)
 end
 
@@ -238,6 +243,7 @@ local function currentBucket()
       commission = 0,
       wages = 0,
       purchases = 0,
+      repairs = 0,
       net = 0,
     }
     table.insert(fleet.history, last)
@@ -258,6 +264,15 @@ local function recordPurchase(amount)
   bucket.net = bucket.net - val
 end
 
+-- Records a repair or service cost in the current hour's finance bucket.
+local function recordRepair(amount)
+  local bucket = currentBucket()
+  if not bucket then return end
+  local val = tonumber(amount) or 0
+  bucket.repairs = bucket.repairs + val
+  bucket.net = bucket.net - val
+end
+
 -- True, or false and the reason: 'careerInactive', 'vanLimit' or 'notEnoughMoney'.
 local function buyVan()
   if not ensureLoaded() then
@@ -275,7 +290,11 @@ local function buyVan()
   end
   fleet.nextVanId = id + 1
   fleet.vanOffer = rollVanOffer()
-  table.insert(fleet.vans, {id = id, kind = 'van', name = 'Van ' .. id, trips = 0, net = 0, tripElapsed = 0, pricePaid = price})
+  table.insert(fleet.vans, {
+    id = id, kind = 'van', name = 'Van ' .. id,
+    trips = 0, net = 0, tripElapsed = 0, pricePaid = price,
+    condition = 1, brokenFor = 0, breakdowns = 0,
+  })
   recordPurchase(price)
   log('I', logTag, string.format('buyVan: Van %d bought for $%d (fleet: %d, next offer $%d)', id, price, #fleet.vans, getVanPrice()))
   return true
@@ -303,7 +322,11 @@ local function buyTruck()
   end
   fleet.nextVanId = id + 1
   fleet.truckOffer = rollVanOffer()
-  table.insert(fleet.vans, {id = id, kind = 'truck', name = 'Truck ' .. id, trips = 0, net = 0, tripElapsed = 0, pricePaid = price})
+  table.insert(fleet.vans, {
+    id = id, kind = 'truck', name = 'Truck ' .. id,
+    trips = 0, net = 0, tripElapsed = 0, pricePaid = price,
+    condition = 1, brokenFor = 0, breakdowns = 0,
+  })
   recordPurchase(price)
   log('I', logTag, string.format('buyTruck: Truck %d bought for $%d (fleet: %d, next offer $%d)', id, price, #fleet.vans, getTruckPrice()))
   return true
@@ -315,11 +338,13 @@ local function findVan(id)
   end
 end
 
--- What a vehicle sells for now: its price minus the resale loss, times the live RLS vehicle market.
+-- What a vehicle sells for now: its price minus the resale loss, times the live RLS vehicle market,
+-- scaled by condition (0.5 at condition 0 up to 1.0 at condition 1).
 -- Vans bought before prices were stored count at the average price.
 local function getSellValue(van)
   local paid = tonumber(van.pricePaid) or (van.kind == 'truck' and balance.truckPrice or balance.vanPrice)
-  return math.floor(paid * balance.vanResaleShare * beamazon_adapter.getVehicleBuyMultiplier() + 0.5)
+  local conditionFactor = 0.5 + 0.5 * (van.condition or 1)
+  return math.floor(paid * balance.vanResaleShare * beamazon_adapter.getVehicleBuyMultiplier() * conditionFactor + 0.5)
 end
 
 -- True and the money received, or false and the reason: 'careerInactive' or 'noVan'.
@@ -416,8 +441,95 @@ local function recordTrip(van, result, driver)
     bucket.net = bucket.net + result.net
   end
   if beamazon_company then beamazon_company.addXpFromProfit(result.net) end
+  local isTruck = van.kind == 'truck'
+  local lossPerKm = isTruck and balance.truckConditionLossPerKm or balance.conditionLossPerKm
+  local conditionEffect = beamazon_company and beamazon_company.getEffect('conditionLoss') or 0
+  local loss = (van.trip.drivenKm or 0) * lossPerKm * (1 + conditionEffect)
+  van.condition = math.max(balance.minCondition or 0, (van.condition or 1) - loss)
+
+  if van.condition < balance.breakdownBelow then
+    local chance = balance.breakdownChanceMax * (balance.breakdownBelow - van.condition) / balance.breakdownBelow
+    if math.random() < chance then
+      van.brokenFor = balance.breakdownRepairSeconds
+      local cost = balance.breakdownRepairCost * (isTruck and 2 or 1)
+      if not beamazon_adapter.pay(cost, 'Beamazon: ' .. van.name .. ' repair') then
+        pending.net = pending.net - cost
+      end
+      fleet.totals.costs = fleet.totals.costs + cost
+      fleet.totals.net = fleet.totals.net - cost
+      recordRepair(cost)
+      van.breakdowns = (van.breakdowns or 0) + 1
+      local minutes = math.ceil(balance.breakdownRepairSeconds / 60)
+      local msg = string.format('%s broke down: $%d repair, back in %d min.', van.name, cost, minutes)
+      log('I', logTag, msg)
+      if guihooks and guihooks.trigger then
+        guihooks.trigger('toastrMsg', {type = 'warning', title = 'Beamazon', msg = msg})
+      end
+    end
+  end
   log('D', logTag, string.format('%s delivered %d parcel(s) over %.1f km: revenue $%.2f, energy $%.2f, wear $%.2f, commission $%.2f, net $%.2f',
     van.name, #van.trip.parcels, van.trip.routeKm, result.revenue, result.energy, result.wear, result.commission, result.net))
+end
+
+-- Cost in $ to service a vehicle to 100% condition.
+local function serviceCost(van)
+  local condition = van.condition or 1
+  if condition >= 0.999 then return 0 end
+  local effect = beamazon_company and beamazon_company.getEffect('serviceCost') or 0
+  local mult = van.kind == 'truck' and 2 or 1
+  local cost = math.ceil((1 - condition) * 100 * balance.serviceCostPerPoint * mult * math.max(0, 1 + effect))
+  return math.max(0, cost)
+end
+
+-- True and the cost charged, or false and the reason: 'careerInactive', 'noVan', 'alreadyNew' or 'notEnoughMoney'.
+local function serviceVan(id)
+  if not ensureLoaded() then
+    log('W', logTag, 'serviceVan: career is not active (RLS Career Overhaul is required)')
+    return false, 'careerInactive'
+  end
+  local van = findVan(id)
+  if not van then
+    log('W', logTag, 'serviceVan: no van with id ' .. tostring(id))
+    return false, 'noVan'
+  end
+  if (van.condition or 1) >= 0.999 then
+    return false, 'alreadyNew'
+  end
+  local cost = serviceCost(van)
+  if not beamazon_adapter.pay(cost, 'Beamazon: ' .. van.name .. ' service') then
+    log('W', logTag, string.format('serviceVan: not enough money for %s service ($%d)', van.name, cost))
+    return false, 'notEnoughMoney'
+  end
+  van.condition = 1
+  recordRepair(cost)
+  log('I', logTag, string.format('serviceVan: %s serviced for $%d', van.name, cost))
+  return true, cost
+end
+
+-- Services every vehicle below 0.999 condition that can be paid, worst condition first.
+-- Stops at the first failed payment; returns count, total.
+local function serviceAll()
+  if not ensureLoaded() then return 0, 0 end
+  local candidates = {}
+  for _, van in ipairs(fleet.vans) do
+    if (van.condition or 1) < 0.999 then
+      table.insert(candidates, van)
+    end
+  end
+  table.sort(candidates, function(a, b)
+    return (a.condition or 1) < (b.condition or 1)
+  end)
+  local count, total = 0, 0
+  for _, van in ipairs(candidates) do
+    local ok, cost = serviceVan(van.id)
+    if ok then
+      count = count + 1
+      total = total + cost
+    else
+      break
+    end
+  end
+  return count, total
 end
 
 local function status()
@@ -442,12 +554,15 @@ local function status()
     or '  net per van-hour: needs 1 van-hour of work')
   for _, van in ipairs(fleet.vans) do
     local doing = 'idle'
-    if van.kind == 'truck' and not beamazon_company.getTruckDriver(van) then
+    if (van.brokenFor or 0) > 0 then
+      doing = string.format('broken down, %dm left', math.ceil(van.brokenFor / 60))
+    elseif van.kind == 'truck' and not beamazon_company.getTruckDriver(van) then
       doing = 'parked, no driver'
     elseif van.trip then
       doing = string.format('on a trip, %d%% done', math.floor(van.tripElapsed / van.trip.durationS * 100))
     end
-    log('I', logTag, string.format('  %s (id %d): %s, %d trip(s), net $%.2f, sells for $%d', van.name, van.id, doing, van.trips, van.net, getSellValue(van)))
+    local condPct = (van.condition or 1) >= 0.999 and 100 or math.floor((van.condition or 1) * 100)
+    log('I', logTag, string.format('  %s (id %d): %s, condition %d%%, %d trip(s), net $%.2f, sells for $%d', van.name, van.id, doing, condPct, van.trips, van.net, getSellValue(van)))
   end
   return fleet
 end
@@ -492,6 +607,10 @@ M.buyHq = buyHq
 M.getNextVanUnlock = getNextVanUnlock
 M.getVanPrice = getVanPrice
 M.addWorkTime = addWorkTime
+M.getServiceCost = serviceCost
+M.serviceCost = serviceCost
+M.serviceVan = serviceVan
+M.serviceAll = serviceAll
 M.buyVan = buyVan
 M.getSellValue = getSellValue
 M.sellVan = sellVan

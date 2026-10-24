@@ -6,6 +6,7 @@ local M = {}
 local balance = require('beamazon/balance')
 
 local function vanRow(van)
+  local cond = van.condition or 1
   local row = {
     id = van.id,
     kind = van.kind,
@@ -17,6 +18,10 @@ local function vanRow(van)
     parcels = 0,
     routeKm = 0,
     sellValue = beamazon_fleetManager.getSellValue(van),
+    condition = cond >= 0.999 and 100 or math.max(0, math.min(100, math.floor(cond * 100 + 0.0001))),
+    brokenMinutes = (van.brokenFor and van.brokenFor > 0) and math.ceil(van.brokenFor / 60) or 0,
+    serviceCost = beamazon_fleetManager.getServiceCost(van),
+    breakdowns = tonumber(van.breakdowns) or 0,
   }
   if van.kind == 'truck' then
     local driver = beamazon_company.getTruckDriver(van)
@@ -63,8 +68,11 @@ local function getData()
     return {active = false}
   end
   local vans = {}
+  local serviceAllCost = 0
   for _, van in ipairs(beamazon_fleetManager.getVans()) do
-    table.insert(vans, vanRow(van))
+    local row = vanRow(van)
+    table.insert(vans, row)
+    serviceAllCost = serviceAllCost + (row.serviceCost or 0)
   end
   local history = beamazon_fleetManager.getHistory()
   local historyTotals = {
@@ -75,6 +83,7 @@ local function getData()
     commission = 0,
     wages = 0,
     purchases = 0,
+    repairs = 0,
     net = 0,
   }
   for _, bucket in ipairs(history) do
@@ -85,6 +94,7 @@ local function getData()
     historyTotals.commission = historyTotals.commission + (bucket.commission or 0)
     historyTotals.wages = historyTotals.wages + (bucket.wages or 0)
     historyTotals.purchases = historyTotals.purchases + (bucket.purchases or 0)
+    historyTotals.repairs = historyTotals.repairs + (bucket.repairs or 0)
     historyTotals.net = historyTotals.net + (bucket.net or 0)
   end
   return {
@@ -97,6 +107,7 @@ local function getData()
     totals = beamazon_fleetManager.getTotals(),
     netPerVanHour = beamazon_fleetManager.getNetPerVanHour(),
     vans = vans,
+    serviceAllCost = serviceAllCost,
     history = history,
     historyTotals = historyTotals,
   }
@@ -131,12 +142,22 @@ local function hireDriver()
   return result(ok, driverOrReason)
 end
 local function fireDriver(id) return result(beamazon_company.fireDriver(id)) end
+local function serviceVan(id)
+  local ok, reason = beamazon_fleetManager.serviceVan(id)
+  return result(ok, reason)
+end
+local function serviceAll()
+  beamazon_fleetManager.serviceAll()
+  return result(true)
+end
 
 M.getData = getData
 M.buyTruck = buyTruck
 M.buyUpgrade = buyUpgrade
 M.hireDriver = hireDriver
 M.fireDriver = fireDriver
+M.serviceVan = serviceVan
+M.serviceAll = serviceAll
 M.routeToHq = routeToHq
 M.sellVan = sellVan
 M.buyVan = buyVan
