@@ -42,6 +42,10 @@
             <span>{{ van.trips }} trip{{ van.trips === 1 ? '' : 's' }}</span>
           </div>
           <div class="progress"><div class="progress-fill" :style="{ width: Math.round(van.progress * 100) + '%' }"></div></div>
+          <button class="sell-button" type="button" :class="{ confirm: confirmSellId === van.id }" :disabled="selling" @click="sellVan(van)">
+            <template v-if="confirmSellId === van.id">Tap again to sell for {{ money(van.sellValue) }}</template>
+            <template v-else>Sell · {{ money(van.sellValue) }}</template>
+          </button>
         </div>
       </div>
 
@@ -65,6 +69,11 @@ const loaded = ref(false)
 const buying = ref(false)
 const message = ref("")
 const messageIsError = ref(false)
+const selling = ref(false)
+// A sale needs a second tap on the same van within confirmMs.
+const confirmSellId = ref(null)
+const confirmMs = 4000
+let confirmTimer = null
 let timer = null
 
 // An empty Lua table arrives as {} instead of [].
@@ -111,6 +120,31 @@ async function buyVan() {
   }
 }
 
+const sellErrors = {
+  careerInactive: "Career not active.",
+  noVan: "That van is no longer in the fleet.",
+}
+
+async function sellVan(van) {
+  if (confirmSellId.value !== van.id) {
+    confirmSellId.value = van.id
+    clearTimeout(confirmTimer)
+    confirmTimer = setTimeout(() => (confirmSellId.value = null), confirmMs)
+    return
+  }
+  confirmSellId.value = null
+  clearTimeout(confirmTimer)
+  selling.value = true
+  try {
+    const result = await runRaw(`beamazon_phoneApp and beamazon_phoneApp.sellVan(${Number(van.id)})`)
+    apply(result?.data)
+    messageIsError.value = !result?.ok
+    message.value = result?.ok ? `${van.name} sold for ${money(result.value)}.` : (sellErrors[result?.reason] || "Could not sell the van.")
+  } finally {
+    selling.value = false
+  }
+}
+
 onMounted(() => {
   refresh()
   timer = setInterval(refresh, refreshMs)
@@ -118,6 +152,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearInterval(timer)
+  clearTimeout(confirmTimer)
 })
 </script>
 
@@ -261,6 +296,27 @@ onUnmounted(() => {
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.12);
   overflow: hidden;
+}
+
+.sell-button {
+  justify-self: end;
+  border: 1px solid rgba(252, 217, 168, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: #fcd9a8;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+
+  &.confirm {
+    background: #b45309;
+    border-color: #b45309;
+    color: #fff;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+  }
 }
 
 .progress-fill {

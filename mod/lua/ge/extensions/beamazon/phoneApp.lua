@@ -13,6 +13,7 @@ local function vanRow(van)
     progress = 0,
     parcels = 0,
     routeKm = 0,
+    sellValue = beamazon_fleetManager.getSellValue(van),
   }
   if van.trip then
     row.progress = math.min(van.tripElapsed / van.trip.durationS, 1)
@@ -48,7 +49,14 @@ local function buyVan()
   return {ok = ok, reason = reason, data = getData()}
 end
 
+-- {ok, reason, value, data}: reason is 'careerInactive' or 'noVan' when ok is false.
+local function sellVan(id)
+  local ok, result = beamazon_fleetManager.sellVan(id)
+  return {ok = ok, reason = not ok and result or nil, value = ok and result or nil, data = getData()}
+end
+
 M.getData = getData
+M.sellVan = sellVan
 M.buyVan = buyVan
 
 return M

@@ -215,6 +215,27 @@ quiet = false
 check(low >= 7500 * 0.70 and high <= 7500 * 1.30 and inBand >= n * 0.95 and math.abs(sum / n - 7500) < 300,
   string.format('%d offers: $%d to $%d, average $%d, %d within 12%%', n, low, high, math.floor(sum / n), inBand))
 table.remove(balance.personalVanUnlocks)
+-- Selling: 85% of the price paid, times the RLS vehicle market.
+local fm = beamazon_fleetManager
+local sold = fm.getVans()[#fm.getVans()]
+check(sold.pricePaid and fm.getSellValue(sold) == math.floor(sold.pricePaid * 0.85 + 0.5), 'sell value: 85% of $' .. tostring(sold.pricePaid))
+marketIndex = 1.1
+check(fm.getSellValue(sold) == math.floor(sold.pricePaid * 0.85 * 1.1 + 0.5), 'sell value follows the RLS vehicle market')
+marketIndex = 1
+local count, before, value = #fm.getVans(), money, fm.getSellValue(sold)
+r = beamazon_phoneApp.sellVan(sold.id)
+check(r.ok and r.value == value and money == before + value and #r.data.vans == count - 1, 'phone sell: van gone, $' .. value .. ' credited')
+check(ledger[#ledger][2] == 'Beamazon: sold ' .. sold.name and ledger[#ledger][3] == 'business', 'sale is one business ledger entry')
+r = beamazon_phoneApp.sellVan(sold.id)
+check(r.ok == false and r.reason == 'noVan' and money == before + value, 'selling the same van twice is refused')
+local first = fm.getVans()[1]
+first.pricePaid = nil
+check(fm.getSellValue(first) == math.floor(7500 * 0.85 + 0.5), 'a van saved before prices were stored sells at the average')
+local kept = fm.getVans()[2]
+save('/saves/prof/autosave1')
+active = false; extensions.hook('onOverhaulActive', false)
+active = true; extensions.hook('onOverhaulActive', true, false)
+check(fm.getVans()[2].pricePaid == kept.pricePaid and fm.getSellValue(fm.getVans()[2]) == fm.getSellValue(kept), 'price paid survives the save')
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')

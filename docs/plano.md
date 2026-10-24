@@ -122,10 +122,10 @@ Decidido pelo Flavio e pelo Bernardo em 2026-10-24 (segunda rodada):
 - **Primeira filial: umas 5 vagas** (10 pareceu muito; o número ainda é exemplo).
 - **Caminhões limitados por motoristas.** Na primeira filial dá para ter 5 caminhões, se houver 5 motoristas. O custo do motorista é a desvantagem do caminhão.
 - **Motoristas pela árvore de habilidades da empresa.** Exemplo: ao comprar a filial, 1 motorista (1 caminhão e 4 vans); a árvore libera mais motoristas com o tempo, e o jogador pode vender uma van para pôr outro caminhão.
-- **Venda de van:** segue o mercado, como a compra. O valor parte do preço pago, com desvalorização, e passa pelo índice de venda do RLS (o RLS paga 95% do índice na venda, ou 85% quando o mercado está abaixo de 0,85).
+- **Venda de van:** devolve 85% do preço pago, vezes o índice do mercado de veículos do RLS (Flavio, 2026-10-24: "tirar uns 15% e seguir a média do mercado"). Feito (`balance.vanResaleShare`). A viagem em andamento se perde com a van.
 - **Árvore de habilidades:** viável. No RLS ela é só dados: um JSON por tipo de negócio em `gameplay/overhaul/business/skillTrees/` com nós (custo em dinheiro, custo em XP da empresa, nível máximo, dependências), e `business/skillTree.lua` cobra e grava. Caminho a escolher pelo agente: registrar a empresa como um tipo de negócio do RLS (ganha a tela da árvore, a conta e o computador prontos, mas fica preso aos internos dos negócios do RLS) ou uma árvore própria no mesmo formato, dentro do app do Beamazon.
 
-Ainda a decidir com o Bernardo: o salário do motorista e os números do caminhão; o preço de abrir a empresa; quanto a van desvaloriza (por tempo, por entregas, ou as duas); o XP por nível; o preço das filiais e as vagas de cada uma; se a frota ganha o bônus de pagamento do nível de Logística do jogador (o agente sugere que não: a empresa tem o bônus dela).
+Ainda a decidir com o Bernardo: o salário do motorista e os números do caminhão; o preço de abrir a empresa; o XP por nível; o preço das filiais e as vagas de cada uma; se a frota ganha o bônus de pagamento do nível de Logística do jogador (o agente sugere que não: a empresa tem o bônus dela).
 
 ## Integração com o RLS
 
@@ -189,10 +189,10 @@ Atualizado em 2026-10-24. As fases 0 a 3 do plano original viraram os blocos "Fe
 
 ### Próximo: a empresa (decidido, falta fazer)
 
-6. **Venda de van:** parte do preço pago, desvaloriza e segue o índice de venda do RLS. Espera a regra de desvalorização.
-7. **Sede:** o nível 20 de Logística libera a compra; computador no ponto "Logistics"; umas 5 vagas; vaga é vaga (van ou caminhão).
+6. **Venda de van:** 85% do preço pago, vezes o mercado do RLS. Feito; falta o teste em jogo.
+7. **Sede (a sede é a empresa):** o nível 20 de Logística libera a compra; preço a pesquisar (o Bernardo chutou ~$70.000); computador no ponto "Logistics"; umas 5 vagas; vaga é vaga (van ou caminhão).
 8. **XP e árvore de habilidades da empresa:** a frota dá XP à empresa; a árvore libera motoristas, vagas e eficiência.
-9. **Caminhão H-Series (~$18.000) e motoristas:** entregas maiores e mais longas; cada caminhão precisa de um motorista com salário; sem motorista, fica parado sem custo.
+9. **Caminhão H-Series (~$18.000) e motoristas:** entregas maiores e mais longas (a barra de progresso dele enche mais devagar, mas cada viagem paga bem mais, para compensar); cada caminhão precisa de um motorista com salário; sem motorista, fica parado sem custo.
 10. **Filiais:** outros pontos do mapa (as Dockyards primeiro), cada uma com as suas vagas.
 11. **Tenda na sede**, no lugar da barreira.
 

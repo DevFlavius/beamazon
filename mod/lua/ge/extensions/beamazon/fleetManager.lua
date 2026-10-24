@@ -1,5 +1,5 @@
 -- Beamazon: the fleet as data. Buying vans, the books per van and the save file.
--- Console (GE Lua): beamazon_fleetManager.buyVan()   beamazon_fleetManager.status()
+-- Console (GE Lua): beamazon_fleetManager.buyVan()   beamazon_fleetManager.sellVan(id)   beamazon_fleetManager.status()
 
 local M = {}
 
@@ -164,9 +164,41 @@ local function buyVan()
   end
   fleet.nextVanId = id + 1
   fleet.vanOffer = rollVanOffer()
-  table.insert(fleet.vans, {id = id, name = 'Van ' .. id, trips = 0, net = 0, tripElapsed = 0})
+  table.insert(fleet.vans, {id = id, name = 'Van ' .. id, trips = 0, net = 0, tripElapsed = 0, pricePaid = price})
   log('I', logTag, string.format('buyVan: Van %d bought for $%d (fleet: %d, next offer $%d)', id, price, #fleet.vans, getVanPrice()))
   return true
+end
+
+local function findVan(id)
+  for index, van in ipairs(fleet and fleet.vans or {}) do
+    if van.id == id then return van, index end
+  end
+end
+
+-- What a van sells for now: its price minus the resale loss, times the live RLS vehicle market.
+-- Vans bought before prices were stored count at the average price.
+local function getSellValue(van)
+  local paid = tonumber(van.pricePaid) or balance.vanPrice
+  return math.floor(paid * balance.vanResaleShare * beamazon_adapter.getVehicleBuyMultiplier() + 0.5)
+end
+
+-- True and the money received, or false and the reason: 'careerInactive' or 'noVan'.
+-- The trip in progress is dropped with the van; trips already finished are still paid.
+local function sellVan(id)
+  if not ensureLoaded() then
+    log('W', logTag, 'sellVan: career is not active (RLS Career Overhaul is required)')
+    return false, 'careerInactive'
+  end
+  local van, index = findVan(id)
+  if not van then
+    log('W', logTag, 'sellVan: no van with id ' .. tostring(id))
+    return false, 'noVan'
+  end
+  local value = getSellValue(van)
+  if not beamazon_adapter.addMoney(value, 'Beamazon: sold ' .. van.name) then return false, 'careerInactive' end
+  table.remove(fleet.vans, index)
+  log('I', logTag, string.format('sellVan: %s sold for $%d (fleet: %d)', van.name, value, #fleet.vans))
+  return true, value
 end
 
 local function takeOfflineSeconds()
@@ -224,7 +256,7 @@ local function status()
     if van.trip then
       doing = string.format('on a trip, %d%% done', math.floor(van.tripElapsed / van.trip.durationS * 100))
     end
-    log('I', logTag, string.format('  %s: %s, %d trip(s), net $%.2f', van.name, doing, van.trips, van.net))
+    log('I', logTag, string.format('  %s (id %d): %s, %d trip(s), net $%.2f, sells for $%d', van.name, van.id, doing, van.trips, van.net, getSellValue(van)))
   end
   return fleet
 end
@@ -256,6 +288,8 @@ M.getNextVanUnlock = getNextVanUnlock
 M.getVanPrice = getVanPrice
 M.addWorkTime = addWorkTime
 M.buyVan = buyVan
+M.getSellValue = getSellValue
+M.sellVan = sellVan
 M.takeOfflineSeconds = takeOfflineSeconds
 M.payOut = payOut
 M.onFleetTick = onFleetTick

@@ -71,6 +71,7 @@ Fase 0 concluída em 2026-10-24: `docs/api-jogo.md` preenchido e `beamazon_adapt
 O MVP (1 van abstrata, compra por console, simulação por timer, pagamento real no saldo, save) funciona em jogo (2026-10-24, com o RLS): compra, entregas, pagamento no saldo, gravação em `<save>/career/beamazon.json` e a frota volta ao recarregar o save. Medido em jogo: ~$142 de lucro por van-hora, porque a economia viva do RLS paga menos que a fórmula base (ela já inclui a dificuldade do save: difícil e hardcore pagam ×0,5). Os números de balanceamento esperam a decisão dos irmãos. Comandos no console (GE Lua):
 
 - `beamazon_fleetManager.buyVan()`: compra uma van.
+- `beamazon_fleetManager.sellVan(id)`: vende a van com esse id (o `status()` mostra os ids).
 - `beamazon_fleetManager.status()`: mostra a frota no log, com o lucro por van-hora depois de 1 van-hora de trabalho.
 - `beamazon_fleetSim.setSpeed(60)`: acelera a frota para teste (1 s de jogo = 1 min de frota; não é salvo).
 

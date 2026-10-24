@@ -19,6 +19,15 @@ O resto do item 9 passou. Falta: salve, saia para o menu, carregue o mesmo save 
 
 - **Esperado:** o `next van $...` é o mesmo de antes do save.
 
+### 10. Venda de van
+
+Ctrl+L, depois no console: `beamazon_fleetManager.status()`. Cada van mostra `(id N)` e `sells for $X`.
+
+- **Esperado:** as suas vans, compradas a $1.000 antes do preço ser gravado, valem $6.375 (85% de $7.500) vezes o mercado.
+- No celular, toque em `Sell` numa van: o botão vira `Tap again to sell for $X`. Espere 4 s sem tocar: ele volta ao normal.
+- Toque duas vezes: a van some, o saldo sobe exatamente $X, e o log mostra `sellVan: Van N sold for $X`.
+- Salve e recarregue: a van vendida não volta.
+
 ## Não crítico (acumula)
 
 (vazio)

@@ -9,6 +9,7 @@ return {
     {level = 10, vans = 2},
     {level = 15, vans = 3},
   },
+  vanResaleShare = 0.85,          -- a sold van returns this share of its price, times the RLS vehicle market (decided 2026-10-24)
 
   -- A trip: the van loads parcels at the depot, drives the route, delivers and comes back.
   vanCapacitySlots = 24,          -- cargo slots per trip
