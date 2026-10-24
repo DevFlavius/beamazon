@@ -230,6 +230,35 @@ local function getNetPerVanHour()
   return totals.timedNet / (totals.vanSeconds / 3600)
 end
 
+-- The bucket for the current hour, appending a new one when the hour rolls over and dropping the ones older than historyHours.
+local function currentBucket()
+  if not fleet then return nil end
+  fleet.history = fleet.history or {}
+  local hour = math.floor(os.time() / 3600) * 3600
+  local last = fleet.history[#fleet.history]
+  if not last or last.hour ~= hour then
+    last = {
+      hour = hour,
+      trips = 0,
+      revenue = 0,
+      energy = 0,
+      wear = 0,
+      commission = 0,
+      wages = 0,
+      purchases = 0,
+      repairs = 0,
+      bonuses = 0,
+      net = 0,
+    }
+    table.insert(fleet.history, last)
+  end
+  -- hours with no activity have no bucket, so the list is trimmed by age, not by length
+  while fleet.history[1] and fleet.history[1].hour <= hour - balance.historyHours * 3600 do
+    table.remove(fleet.history, 1)
+  end
+  return last
+end
+
 -- Called by fleetSim each time the fleet advances by dt fleet seconds, with how many trucks and vans were working.
 local function addWorkTime(dt, workingTrucks, workingVans)
   if not fleet then return end
@@ -336,35 +365,6 @@ end
 local function getTruckPrice()
   local offer = fleet and fleet.truckOffer or 1
   return math.floor(balance.truckPrice * offer * beamazon_adapter.getVehicleBuyMultiplier() * vehicleDiscount() + 0.5)
-end
-
--- The bucket for the current hour, appending a new one when the hour rolls over and dropping the ones older than historyHours.
-local function currentBucket()
-  if not fleet then return nil end
-  fleet.history = fleet.history or {}
-  local hour = math.floor(os.time() / 3600) * 3600
-  local last = fleet.history[#fleet.history]
-  if not last or last.hour ~= hour then
-    last = {
-      hour = hour,
-      trips = 0,
-      revenue = 0,
-      energy = 0,
-      wear = 0,
-      commission = 0,
-      wages = 0,
-      purchases = 0,
-      repairs = 0,
-      bonuses = 0,
-      net = 0,
-    }
-    table.insert(fleet.history, last)
-  end
-  -- hours with no activity have no bucket, so the list is trimmed by age, not by length
-  while fleet.history[1] and fleet.history[1].hour <= hour - balance.historyHours * 3600 do
-    table.remove(fleet.history, 1)
-  end
-  return last
 end
 
 -- Records a purchase (amount > 0: vehicle, HQ, company upgrade) or a sale (amount < 0) in the current hour's finance bucket.

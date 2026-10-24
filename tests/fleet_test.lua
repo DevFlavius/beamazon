@@ -976,6 +976,140 @@ end)()
   check(rDecFail.ok == false and rDecFail.reason == 'noOffer', 'phone declineContract without offer fails with noOffer')
 end)()
 
+-- 14. company automation (manager and sales team)
+;(function()
+  local fm = beamazon_fleetManager
+  local company = beamazon_company
+  local contracts = beamazon_contracts
+  local balance = require('beamazon/balance')
+
+  -- without the node nothing is automatic
+  check(company.hasAutoService() == false, 'without manager node: hasAutoService is false')
+  check(company.hasAutoContracts() == false, 'without salesTeam node: hasAutoContracts is false')
+
+  local v = fm.getVans()[1]
+  v.condition = 0.1
+  local moneyBefore = money
+  v.trip = beamazon_fleetEconomy.rollTrip(v.kind)
+  v.tripElapsed = v.trip.durationS
+  fm.recordTrip(v, beamazon_fleetEconomy.settleTrip(v.trip))
+  check(v.condition < 0.2, 'without manager: van at 0.1 condition is not serviced automatically')
+
+  local s = fm.getContractState()
+  s.active = nil
+  s.offer = nil
+  local off = contracts.rollOffer()
+  check(s.offer ~= nil and s.active == nil, 'without sales team: rollOffer leaves an offer, does not auto-accept')
+  contracts.decline()
+
+  -- buy 'manager' (give the company enough xp and money; dependencies: drivers level 1 may already be bought in earlier sections — check with beamazon_company.getUpgradeLevel and buy what is missing)
+  if company.getUpgradeLevel('drivers') < 1 then
+    fm.getCompany().xp = 100000
+    money = 100000
+    company.buyUpgrade('drivers')
+  end
+  fm.getCompany().xp = 100000
+  money = 100000
+  check(company.buyUpgrade('manager') == true, 'buy manager upgrade')
+  check(company.getUpgradeLevel('manager') == 1, 'manager upgrade level is 1')
+  check(company.hasAutoService() == true, 'hasAutoService is true after buying manager')
+
+  -- a van at condition 0.1 that finishes a trip gets serviced to 1 and the money drops by the service cost
+  v.condition = 0.1
+  money = 50000
+  local moneyBeforeService = money
+  v.trip = beamazon_fleetEconomy.rollTrip(v.kind)
+  v.tripElapsed = v.trip.durationS
+  fm.recordTrip(v, beamazon_fleetEconomy.settleTrip(v.trip))
+  local charged = moneyBeforeService - money
+  check(v.condition == 1, 'van at condition 0.1 serviced to 1')
+  check(charged > 0 and money == moneyBeforeService - charged, 'money drops by the service cost: $' .. charged)
+
+  -- turning autoService off stops it
+  check(company.setSetting('autoService', false) == true, 'setSetting autoService false')
+  check(company.hasAutoService() == false, 'hasAutoService is false when setting is false')
+  v.condition = 0.1
+  money = 50000
+  local moneyBeforeNoService = money
+  v.trip = beamazon_fleetEconomy.rollTrip(v.kind)
+  v.tripElapsed = v.trip.durationS
+  fm.recordTrip(v, beamazon_fleetEconomy.settleTrip(v.trip))
+  check(v.condition < 0.2, 'autoService off stops auto servicing')
+  check(money == moneyBeforeNoService, 'money unchanged when autoService off')
+  company.setSetting('autoService', true)
+  check(company.hasAutoService() == true, 'autoService re-enabled')
+
+  -- the wage is charged once per 3600 fleet seconds (call beamazon_fleetManager.addWorkTime(3600, 0, 1) directly) and appears in the history wages
+  money = 50000
+  local moneyBeforeWage = money
+  local bucket = fm.getHistory()[#fm.getHistory()]
+  local wagesBefore = bucket and bucket.wages or 0
+  fm.addWorkTime(3600, 0, 1)
+  check(money == moneyBeforeWage - balance.managerWagePerHour, 'wage charged once per 3600 fleet seconds: $' .. balance.managerWagePerHour)
+  bucket = fm.getHistory()[#fm.getHistory()]
+  check(bucket.wages == wagesBefore + balance.managerWagePerHour, 'wage appears in history wages')
+
+  -- buy 'salesTeam': rollOffer accepts by itself (state().active set, offer nil) and the bonus is 10% higher than trips * contractBonusPerTrip
+  s.active = nil
+  s.offer = nil
+  fm.getCompany().xp = 100000
+  money = 100000
+  check(company.buyUpgrade('salesTeam') == true, 'buy salesTeam upgrade')
+  check(company.getUpgradeLevel('salesTeam') == 1, 'salesTeam upgrade level is 1')
+  check(company.hasAutoContracts() == true, 'hasAutoContracts is true after buying salesTeam')
+
+  off = contracts.rollOffer()
+  check(s.active ~= nil and s.offer == nil, 'rollOffer accepts by itself: state().active set, offer nil')
+  local expectedBonus = math.floor(s.active.trips * balance.contractBonusPerTrip * 1.10)
+  check(s.active.bonus == expectedBonus, 'bonus is 10% higher than trips * contractBonusPerTrip: ' .. s.active.bonus .. ' == ' .. expectedBonus)
+
+  -- with autoContracts off, rollOffer leaves an offer
+  s.active = nil
+  s.offer = nil
+  check(company.setSetting('autoContracts', false) == true, 'setSetting autoContracts false')
+  check(company.hasAutoContracts() == false, 'hasAutoContracts is false when setting is false')
+  off = contracts.rollOffer()
+  check(s.offer ~= nil and s.active == nil, 'with autoContracts off, rollOffer leaves an offer')
+  contracts.decline()
+  company.setSetting('autoContracts', true)
+  check(company.hasAutoContracts() == true, 'autoContracts re-enabled')
+
+  -- settings survive save/reload (copy how other sections do it)
+  company.setSetting('autoService', false)
+  company.setSetting('autoContracts', true)
+  save('/saves/prof/autosave1')
+  active = false; extensions.hook('onOverhaulActive', false)
+  check(company.getSettings() == nil, 'career off: company settings nil')
+  active = true; extensions.hook('onOverhaulActive', true, false)
+  local cReloaded = fm.getCompany()
+  check(cReloaded and type(cReloaded.settings) == 'table', 'settings table reloaded')
+  check(cReloaded.settings.autoService == false and cReloaded.settings.autoContracts == true,
+    'settings survive save/reload: autoService=false, autoContracts=true')
+  check(company.hasAutoService() == false, 'hasAutoService correctly false after reload')
+  check(company.hasAutoContracts() == true, 'hasAutoContracts correctly true after reload')
+
+  -- phone setAutoService(false) works and companyData has hasManager
+  company.setSetting('autoService', true)
+  local pd = beamazon_phoneApp.getData()
+  check(pd.company and pd.company.hasManager == true, 'phone companyData has hasManager == true')
+  check(pd.company.hasSalesTeam == true, 'phone companyData has hasSalesTeam == true')
+  check(pd.company.managerWagePerHour == balance.managerWagePerHour, 'phone companyData has managerWagePerHour')
+  check(pd.company.settings.autoService == true, 'phone companyData settings.autoService is true')
+
+  local rPhone = beamazon_phoneApp.setAutoService(false)
+  check(rPhone.ok == true and rPhone.data.company.settings.autoService == false, 'phone setAutoService(false) works')
+  check(company.hasAutoService() == false, 'hasAutoService is false after phone setAutoService(false)')
+
+  local rPhoneContracts = beamazon_phoneApp.setAutoContracts(false)
+  check(rPhoneContracts.ok == true and rPhoneContracts.data.company.settings.autoContracts == false, 'phone setAutoContracts(false) works')
+  check(company.hasAutoContracts() == false, 'hasAutoContracts is false after phone setAutoContracts(false)')
+
+  -- set them back on
+  beamazon_phoneApp.setAutoService(true)
+  beamazon_phoneApp.setAutoContracts(true)
+  check(company.hasAutoService() == true and company.hasAutoContracts() == true, 'automation settings restored to true')
+end)()
+
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')
