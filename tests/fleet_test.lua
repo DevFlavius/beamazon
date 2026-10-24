@@ -490,10 +490,127 @@ check(spent[#spent].purchases - before == 15000, 'a company upgrade counts as a 
 local pd = beamazon_phoneApp.getData()
 check(type(pd.history) == 'table' and #pd.history >= 1, 'phone getData().history exists')
 check(type(pd.historyTotals) == 'table' and type(pd.historyTotals.trips) == 'number' and type(pd.historyTotals.revenue) == 'number'
-  and type(pd.historyTotals.purchases) == 'number' and type(pd.historyTotals.net) == 'number', 'phone getData().historyTotals exists')
+  and type(pd.historyTotals.purchases) == 'number' and type(pd.historyTotals.repairs) == 'number' and type(pd.historyTotals.net) == 'number', 'phone getData().historyTotals exists')
 local sumPurchases = 0
 for _, b in ipairs(pd.history) do sumPurchases = sumPurchases + b.purchases end
 check(pd.historyTotals.purchases == sumPurchases, 'historyTotals.purchases matches sum of buckets')
+
+-- 10. condition, breakdowns and service
+local fm = beamazon_fleetManager
+local balance = require('beamazon/balance')
+local testVan = fm.getVans()[1]
+
+-- condition drops after trips
+testVan.condition = 1
+local c0 = testVan.condition
+local trips0 = testVan.trips
+beamazon_fleetSim.setSpeed(60)
+quiet = true
+for _ = 1, 60 do extensions.hook('onOverhaulCareerSimStep', 1) end
+quiet = false
+check(testVan.condition < c0 and testVan.trips > trips0, string.format('condition drops after trips: %.3f -> %.3f', c0, testVan.condition))
+
+-- sell value lower when worn
+testVan.condition = 1
+local valFull = fm.getSellValue(testVan)
+testVan.condition = 0.5
+local valWorn = fm.getSellValue(testVan)
+check(valWorn < valFull, string.format('sell value lower when worn: $%d vs $%d', valWorn, valFull))
+
+-- workshop node lowers service cost
+testVan.condition = 0.5
+local costBefore = fm.getServiceCost(testVan)
+money = 1e6
+fm.getCompany().xp = 1e6
+check(company.buyUpgrade('workshop'), 'buy workshop upgrade')
+local costAfter = fm.getServiceCost(testVan)
+check(costAfter < costBefore and math.abs(costAfter - math.ceil(costBefore * 0.85)) <= 1,
+  string.format('workshop lowers service cost: $%d -> $%d', costBefore, costAfter))
+
+-- service cost and serviceVan restores 100% and charges
+testVan.condition = 0.5
+local sc = fm.getServiceCost(testVan)
+check(sc > 0, 'service cost is positive: $' .. sc)
+money = sc + 500
+local m0 = money
+local okServ, charged = fm.serviceVan(testVan.id)
+check(okServ and charged == sc and money == m0 - sc and testVan.condition == 1,
+  'serviceVan restores 100% and charges $' .. sc)
+
+-- alreadyNew refused
+local okNew, reasonNew = fm.serviceVan(testVan.id)
+check(not okNew and reasonNew == 'alreadyNew', 'alreadyNew refused when condition >= 0.999')
+
+-- serviceAll services worst first and stops when money runs out
+local v1 = fm.getVans()[1]
+local v2 = fm.getVans()[2]
+v1.condition = 0.80
+v2.condition = 0.40
+local cost1 = fm.getServiceCost(v1)
+local cost2 = fm.getServiceCost(v2)
+check(cost2 > cost1, 'worse van costs more to service')
+money = cost2
+local countServ, totalServ = fm.serviceAll()
+check(countServ == 1 and totalServ == cost2 and v2.condition == 1 and v1.condition == 0.80 and money == 0,
+  'serviceAll services worst first and stops when money runs out')
+money = 1e6
+countServ, totalServ = fm.serviceAll()
+check(countServ >= 1 and v1.condition == 1 and v2.condition == 1, 'serviceAll finishes remaining vehicles')
+
+-- breakdown at condition 0 with math.random faked to 0
+testVan.condition = 0
+testVan.brokenFor = 0
+money = 10000
+local moneyBeforeBreakdown = money
+local repairsBefore = (fm.getHistory()[#fm.getHistory()] or {}).repairs or 0
+local origRandom = math.random
+math.random = function(...)
+  if select('#', ...) == 0 then return 0 else return origRandom(...) end
+end
+testVan.trip = beamazon_fleetEconomy.rollTrip(testVan.kind)
+testVan.tripElapsed = testVan.trip.durationS
+fm.recordTrip(testVan, beamazon_fleetEconomy.settleTrip(testVan.trip))
+math.random = origRandom
+check(testVan.brokenFor == balance.breakdownRepairSeconds, 'vehicle broke down: brokenFor is ' .. tostring(testVan.brokenFor))
+check(testVan.breakdowns >= 1, 'breakdowns count incremented')
+check(money == moneyBeforeBreakdown - balance.breakdownRepairCost, 'repair cost paid from balance')
+local currentB = fm.getHistory()[#fm.getHistory()]
+check(currentB.repairs == repairsBefore + balance.breakdownRepairCost, 'repair recorded in finance bucket repairs')
+
+-- broken vehicle stops working for breakdownRepairSeconds and then works again
+testVan.trip = nil
+testVan.tripElapsed = 0
+testVan.brokenFor = 100
+beamazon_fleetSim.setSpeed(1)
+extensions.hook('onOverhaulCareerSimStep', 30)
+check(testVan.brokenFor == 70 and testVan.trip == nil, 'broken vehicle does not work: 70s left')
+extensions.hook('onOverhaulCareerSimStep', 80)
+check(testVan.brokenFor == 0 and testVan.trip ~= nil, 'repaired vehicle resumes work')
+
+-- condition and brokenFor survive save/reload
+testVan.condition = 0.42
+testVan.brokenFor = 950
+save('/saves/prof/autosave1')
+active = false; extensions.hook('onOverhaulActive', false)
+active = true; extensions.hook('onOverhaulActive', true, false)
+local reloadedVan = fm.getVans()[1]
+check(math.abs(reloadedVan.condition - 0.42) < 0.001 and reloadedVan.brokenFor == 950,
+  'condition (0.42) and brokenFor (950) survive save and reload')
+
+-- phone rows have condition, serviceCost, brokenMinutes, breakdowns
+reloadedVan.condition = 0.75
+local pd2 = beamazon_phoneApp.getData()
+local phoneRow = pd2.vans[1]
+check(phoneRow.condition == 75 and phoneRow.serviceCost == fm.getServiceCost(reloadedVan)
+  and phoneRow.brokenMinutes == math.ceil(950 / 60) and type(phoneRow.breakdowns) == 'number',
+  'phone rows have condition, serviceCost, brokenMinutes, breakdowns')
+check(pd2.serviceAllCost > 0, 'phone getData() has serviceAllCost')
+
+-- phone serviceVan works
+money = phoneRow.serviceCost + 1000
+local rPhone = beamazon_phoneApp.serviceVan(phoneRow.id)
+check(rPhone.ok and rPhone.data.vans[1].condition == 100 and rPhone.data.vans[1].serviceCost == 0,
+  'phone serviceVan works and restores condition to 100%')
 
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
