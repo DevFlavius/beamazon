@@ -73,6 +73,10 @@ local function companyData()
   data.truckPrice = beamazon_fleetManager.getTruckPrice()
   data.netPerTruckHour = beamazon_fleetManager.getNetPerTruckHour()
   data.tree = beamazon_company.getTreeView()
+  data.settings = beamazon_company.getSettings()
+  data.hasManager = beamazon_company.getEffect('autoService') >= 1
+  data.hasSalesTeam = beamazon_company.getEffect('autoContracts') >= 1
+  data.managerWagePerHour = balance.managerWagePerHour
   local sites = beamazon_hq.getSitesOnThisMap and beamazon_hq.getSitesOnThisMap() or {}
   local sitesByBranch = {}
   for _, s in ipairs(sites) do
@@ -203,6 +207,16 @@ local function declineContract()
   if not beamazon_contracts then return result(false, 'careerInactive') end
   return result(beamazon_contracts.decline())
 end
+local function setAutoService(on)
+  if not beamazon_company then return result(false, 'noCompany') end
+  local ok, reason = beamazon_company.setSetting('autoService', on)
+  return result(ok, reason)
+end
+local function setAutoContracts(on)
+  if not beamazon_company then return result(false, 'noCompany') end
+  local ok, reason = beamazon_company.setSetting('autoContracts', on)
+  return result(ok, reason)
+end
 
 M.getData = getData
 M.buyTruck = buyTruck
@@ -214,6 +228,8 @@ M.serviceAll = serviceAll
 M.upgradeVehicle = upgradeVehicle
 M.acceptContract = acceptContract
 M.declineContract = declineContract
+M.setAutoService = setAutoService
+M.setAutoContracts = setAutoContracts
 M.routeToHq = routeToHq
 M.routeToSite = routeToSite
 M.sellVan = sellVan
