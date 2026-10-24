@@ -705,6 +705,141 @@ playerVehicle = {}
 local rSite = beamazon_phoneApp.routeToSite(phoneBranch.siteId)
 check(rSite.ok and navTarget and math.abs(navTarget.x - 469.726) < 0.001, 'routeToSite sets GPS to branch pos')
 
+-- 12. per-vehicle upgrades
+;(function()
+  local fm = beamazon_fleetManager
+  local v = fm.getVans()[1]
+  v.upgrades = {}
+  v.upgradeSpent = 0
+
+  -- buying each upgrade charges base then base+increment
+  money = 100000
+  check(fm.getVehicleUpgradeCost(v, 'motor') == 1000, 'motor level 0 costs base ($1000)')
+  local okUp, costUp = fm.upgradeVehicle(v.id, 'motor')
+  check(okUp and costUp == 1000 and v.upgrades.motor == 1 and v.upgradeSpent == 1000, 'motor level 1 bought for $1000')
+  check(fm.getVehicleUpgradeCost(v, 'motor') == 2000, 'motor level 1 costs base + increment ($2000)')
+  okUp, costUp = fm.upgradeVehicle(v.id, 'motor')
+  check(okUp and costUp == 2000 and v.upgrades.motor == 2 and v.upgradeSpent == 3000, 'motor level 2 bought for $2000')
+
+  check(fm.getVehicleUpgradeCost(v, 'battery') == 1500, 'battery level 0 costs base ($1500)')
+  okUp, costUp = fm.upgradeVehicle(v.id, 'battery')
+  check(okUp and costUp == 1500 and v.upgrades.battery == 1, 'battery level 1 bought for $1500')
+  check(fm.getVehicleUpgradeCost(v, 'battery') == 3000, 'battery level 1 costs base + increment ($3000)')
+
+  check(fm.getVehicleUpgradeCost(v, 'cargo') == 2000, 'cargo level 0 costs base ($2000)')
+  okUp, costUp = fm.upgradeVehicle(v.id, 'cargo')
+  check(okUp and costUp == 2000 and v.upgrades.cargo == 1, 'cargo level 1 bought for $2000')
+  check(fm.getVehicleUpgradeCost(v, 'cargo') == 4000, 'cargo level 1 costs base + increment ($4000)')
+
+  check(fm.getVehicleUpgradeCost(v, 'routing') == 2000, 'routing level 0 costs base ($2000)')
+  okUp, costUp = fm.upgradeVehicle(v.id, 'routing')
+  check(okUp and costUp == 2000 and v.upgrades.routing == 1, 'routing level 1 bought for $2000')
+  check(fm.getVehicleUpgradeCost(v, 'routing') == 4000, 'routing level 1 costs base + increment ($4000)')
+
+  -- truck pays x2
+  local testTruck = nil
+  for _, veh in ipairs(fm.getVans()) do
+    if veh.kind == 'truck' then testTruck = veh; break end
+  end
+  if not testTruck then
+    money = 100000
+    fm.buyTruck()
+    testTruck = fm.getVans()[#fm.getVans()]
+  end
+  testTruck.upgrades = {}
+  testTruck.upgradeSpent = 0
+  check(fm.getVehicleUpgradeCost(testTruck, 'motor') == 2000, 'truck pays x2 for upgrades ($2000 for motor 1)')
+  local okT, costT = fm.upgradeVehicle(testTruck.id, 'motor')
+  check(okT and costT == 2000 and testTruck.upgrades.motor == 1 and testTruck.upgradeSpent == 2000, 'truck upgrade charges 2x base')
+
+  -- maxLevel refused
+  check(v.upgrades.cargo == 1, 'cargo is level 1 before reaching max')
+  okUp, costUp = fm.upgradeVehicle(v.id, 'cargo')
+  check(okUp and v.upgrades.cargo == 2, 'cargo reached maxLevel 2')
+  check(fm.getVehicleUpgradeCost(v, 'cargo') == nil, 'cost is nil at max level')
+  local okMax, whyMax = fm.upgradeVehicle(v.id, 'cargo')
+  check(okMax == false and whyMax == 'maxLevel', 'upgradeVehicle maxLevel refused: ' .. tostring(whyMax))
+
+  -- unknown refused
+  local okUnk, whyUnk = fm.upgradeVehicle(v.id, 'nonexistent')
+  check(okUnk == false and whyUnk == 'unknown', 'upgradeVehicle unknown refused: ' .. tostring(whyUnk))
+
+  -- noVan refused
+  local okNoVan, whyNoVan = fm.upgradeVehicle(99999, 'motor')
+  check(okNoVan == false and whyNoVan == 'noVan', 'upgradeVehicle noVan refused: ' .. tostring(whyNoVan))
+
+  -- notEnoughMoney refused and nothing changes
+  money = 0
+  local spentBeforeNoMoney = v.upgradeSpent
+  local routingLvlBefore = v.upgrades.routing
+  local okNoMoney, whyNoMoney = fm.upgradeVehicle(v.id, 'routing')
+  check(okNoMoney == false and whyNoMoney == 'notEnoughMoney', 'upgradeVehicle notEnoughMoney refused: ' .. tostring(whyNoMoney))
+  check(v.upgrades.routing == routingLvlBefore and v.upgradeSpent == spentBeforeNoMoney and money == 0, 'nothing changes on notEnoughMoney')
+
+  -- effects:
+  -- with cargo the trips can carry one more parcel than the profile max
+  local origRandom = math.random
+  math.random = function(...)
+    local n = select('#', ...)
+    if n == 0 then return 0.01 end
+    if n == 1 then return 1 end
+    local a, b = ...
+    return a
+  end
+  local normalTrip = beamazon_fleetEconomy.rollTrip('van')
+  local cargoTrip = beamazon_fleetEconomy.rollTrip('van', {parcels = 1, tripTime = 0, energy = 0, revenue = 0})
+  math.random = origRandom
+  check(#normalTrip.parcels == balance.maxParcelsPerTrip, 'normal trip parcels count is maxParcelsPerTrip')
+  check(#cargoTrip.parcels == balance.maxParcelsPerTrip + 1, 'cargo mod allows 1 more parcel than profile max')
+
+  -- routing raises revenue for the same trip by 3% per level
+  local sampleTrip = beamazon_fleetEconomy.rollTrip('van')
+  local baseRes = beamazon_fleetEconomy.settleTrip(sampleTrip)
+  local routeRes1 = beamazon_fleetEconomy.settleTrip(sampleTrip, nil, {revenue = 0.03, energy = 0, tripTime = 0, parcels = 0})
+  local routeRes2 = beamazon_fleetEconomy.settleTrip(sampleTrip, nil, {revenue = 0.06, energy = 0, tripTime = 0, parcels = 0})
+  local effRev = beamazon_company and beamazon_company.getEffect('revenue') or 0
+  local rawRevEst = baseRes.revenue / (1 + effRev)
+  check(math.abs((routeRes1.revenue - baseRes.revenue) - rawRevEst * 0.03) <= 0.05, 'routing level 1 raises revenue by 3%')
+  check(math.abs((routeRes2.revenue - baseRes.revenue) - rawRevEst * 0.06) <= 0.05, 'routing level 2 raises revenue by 6%')
+
+  -- motor lowers energy
+  local motorRes = beamazon_fleetEconomy.settleTrip(sampleTrip, nil, {energy = -0.10, revenue = 0})
+  check(motorRes.energy < baseRes.energy and math.abs(motorRes.energy - baseRes.energy * 0.90) <= 0.02, 'motor lowers energy by 10%')
+
+  -- battery shortens durationS
+  math.randomseed(123)
+  local tripNormalTime = beamazon_fleetEconomy.rollTrip('van')
+  math.randomseed(123)
+  local tripBatteryTime = beamazon_fleetEconomy.rollTrip('van', {tripTime = -0.05})
+  check(tripBatteryTime.durationS < tripNormalTime.durationS, 'battery shortens durationS')
+
+  -- upgrades survive save/reload
+  local vSavedUpgrades = deepcopy(v.upgrades)
+  local vSavedSpent = v.upgradeSpent
+  save('/saves/prof/autosave1')
+  active = false; extensions.hook('onOverhaulActive', false)
+  active = true; extensions.hook('onOverhaulActive', true, false)
+  local vReloaded = fm.getVans()[1]
+  check(vReloaded.upgradeSpent == vSavedSpent, 'upgradeSpent survives save/reload')
+  check(vReloaded.upgrades.motor == vSavedUpgrades.motor and vReloaded.upgrades.cargo == vSavedUpgrades.cargo, 'upgrades table survives save/reload')
+
+  -- the sell value grows by half the upgrade money
+  local vNoUp = deepcopy(vReloaded)
+  vNoUp.upgradeSpent = 0
+  local valWithUp = fm.getSellValue(vReloaded)
+  local valNoUp = fm.getSellValue(vNoUp)
+  check(valWithUp == valNoUp + math.floor(vReloaded.upgradeSpent * 0.5), 'sell value grows by half the upgrade money')
+
+  -- phone rows list 4 upgrades and phone upgradeVehicle works
+  local pd4 = beamazon_phoneApp.getData()
+  local phoneVan = pd4.vans[1]
+  check(type(phoneVan.upgrades) == 'table' and #phoneVan.upgrades == 4, 'phone row lists 4 vehicle upgrades')
+  check(phoneVan.upgrades[1].id == 'motor' and phoneVan.upgrades[1].title == 'Efficient Motor', 'phone upgrade has id and title')
+  money = 50000
+  local rPhoneUp = beamazon_phoneApp.upgradeVehicle(phoneVan.id, 'routing')
+  check(rPhoneUp.ok and rPhoneUp.data.vans[1].upgrades[4].level >= 2, 'phone upgradeVehicle works and returns updated data')
+end)()
+
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')
