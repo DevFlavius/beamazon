@@ -13,15 +13,11 @@ Console do jogo: `~`, no modo GE Lua. Para acelerar: `beamazon_fleetSim.setSpeed
 
 ## Crítico (próximo lote)
 
-### 1. Pagamento em lote
-
-Num save com pelo menos 1 van, jogue uns 3 minutos.
-
-- **Esperado:** no log, no máximo uma linha `addMoney: ... (balance: ...)` por minuto, e o saldo sobe junto. O livro-caixa do RLS mostra "Beamazon: fleet deliveries (N)", e não uma linha por viagem.
-
 ### 2. Crédito antes do save
 
-Logo depois de uma viagem terminar (use `setSpeed(60)` para ter várias), salve o jogo pelo RLS. Volte ao menu e carregue esse save.
+Num save **sem o modo cheats** (com cheats o saldo fica em $1.000.000.000.000 e não dá para conferir). Logo depois de uma viagem terminar (use `setSpeed(60)` para ter várias), salve o jogo pelo RLS. Volte ao menu e carregue esse save.
+
+Já confirmado em 2026-10-24: o pagamento pendente entra logo antes do save (`addMoney` 0,1 s antes de gravar o `beamazon.json`). Falta conferir o saldo depois de recarregar.
 
 - **Esperado:** o saldo ao carregar é igual ao saldo no momento do save. Nenhum dinheiro some e nenhum aparece em dobro.
 
@@ -32,30 +28,9 @@ Salve, saia para o menu (ou feche o jogo) e espere uns 15 minutos de relógio. C
 - **Esperado:** no log aparecem `fleet loaded: N van(s), 0.2 h away` e `offline progress: 0.2 h`. O livro-caixa ganha uma linha "Beamazon: offline deliveries (N)".
 - O teto é de 8 h. Para testar, mude o relógio do PC ou só confira: fora mais de 8 h deve dar `8.0 h away`.
 
-### 4. Limite de 3 vans e XP de Logística
-
-Com 3 vans, tente comprar a 4ª pelo console (`beamazon_fleetManager.buyVan()`) e pelo app.
-
-- **Esperado:** o console devolve `false` e o log mostra `buyVan: van limit reached (3)`. Nada é cobrado. No app, o resumo mostra "Vans 3 / 3" e o botão vira "Van limit reached", desativado.
-- Num save que já tinha mais de 3 vans, elas continuam. Só a compra fica bloqueada.
-- Depois de alguns pagamentos da frota, as linhas `addMoney: ..., N XP` mostram um XP pequeno. A barra da skill Logistics sobe bem devagar e sem erro no log.
-
 ## Não crítico (acumula)
 
-### 5. App no celular
-
-Instale o app "Beamazon" pela App Store do celular do RLS e abra.
-
-- **Esperado:** aparece o resumo (vans, entregas, lucro), cada van com a barra de progresso e o botão "Buy a van".
-- Com dinheiro, o botão compra uma van e cobra o preço. Sem dinheiro, ele mostra "Not enough money for a van." e não cobra nada.
-- O botão voltar leva à tela inicial do celular.
-
-### 6. Lucro por van-hora
-
-Com `setSpeed(60)`, espere 1 minuto por van e rode `beamazon_fleetManager.status()`.
-
-- **Esperado:** o log mostra `net $X per van-hour over Y van-hours`. O app mostra "$X profit per van-hour" abaixo do resumo.
-- Num save antigo, esse número começa do zero (o save não tinha a contagem de horas). É o número que os irmãos usam para decidir o balanceamento.
+(vazio)
 
 ## Antes do release
 
@@ -78,3 +53,8 @@ Rode `scripts/pack.sh` e instale `dist/beamazon.zip` no lugar do link (tire o li
 | 2026-10-24 | Fase 0: `creditTest()` credita $1 | ok |
 | 2026-10-24 | MVP: compra, entregas, pagamento no saldo, save e volta ao recarregar | ok, ~$142 por van-hora |
 | 2026-10-24 | Celular do RLS abre (os erros de UI no log são do RLS) | ok |
+| 2026-10-24 | Pagamento em lote: um `addMoney` por minuto e um logo antes do save | ok |
+| 2026-10-24 | Limite de 3 vans: a 4ª recusada no console (`van limit reached (3)`) e no app | ok |
+| 2026-10-24 | XP de Logística pela frota: 2 a 14 XP por pagamento, sem erro | ok |
+| 2026-10-24 | App no celular: instalar, ver a frota, comprar van, voltar | ok |
+| 2026-10-24 | Lucro por van-hora no `status()` e no app | ok, $229,59 em 3,7 van-horas (save com cheats) |
