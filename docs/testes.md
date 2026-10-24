@@ -17,7 +17,9 @@ Console do jogo: `~`, no modo GE Lua. Para acelerar: `beamazon_fleetSim.setSpeed
 
 Num save **sem o modo cheats** (com cheats o saldo fica em $1.000.000.000.000 e não dá para conferir). Logo depois de uma viagem terminar (use `setSpeed(60)` para ter várias), salve o jogo pelo RLS. Volte ao menu e carregue esse save.
 
-Já confirmado em 2026-10-24: o pagamento pendente entra logo antes do save (`addMoney` 0,1 s antes de gravar o `beamazon.json`). Falta conferir o saldo depois de recarregar.
+Já confirmado em 2026-10-24 (save `perfil2`, sem cheats): o pagamento pendente entra logo antes do save, e o save grava o saldo com ele ($49.346,83 no log e no `playerattributes.json`). Falta conferir o saldo ao recarregar.
+
+- Também a conferir: o `setSpeed(60)` de uma sessão não passa mais para outra carreira carregada depois (corrigido em 2026-10-24).
 
 - **Esperado:** o saldo ao carregar é igual ao saldo no momento do save. Nenhum dinheiro some e nenhum aparece em dobro.
 

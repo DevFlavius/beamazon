@@ -1,5 +1,5 @@
 -- Beamazon: abstract simulation. Each van is a table; the fleet advances every tickSeconds, never per frame.
--- Test speed-up (not saved): beamazon_fleetSim.setSpeed(60) makes one game second count as a fleet minute.
+-- Test speed-up (not saved; back to x1 whenever a career loads): beamazon_fleetSim.setSpeed(60) makes one game second count as a fleet minute.
 
 local M = {}
 
@@ -69,7 +69,14 @@ local function setSpeed(value)
   return true
 end
 
+-- A speed-up from one career must not leak into the next one loaded in the same session.
+local function onBeamazonCareerActive()
+  speed = 1
+  pendingSeconds = 0
+end
+
 M.setSpeed = setSpeed
+M.onBeamazonCareerActive = onBeamazonCareerActive
 M.onBeamazonSimStep = onBeamazonSimStep
 
 return M

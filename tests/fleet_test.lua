@@ -132,7 +132,12 @@ check(after[1].trips - t0 >= 1, 'x60: 1 game minute = 1 fleet hour, trips ' .. (
 
 
 -- 5. offline progress
-beamazon_fleetSim.setSpeed(1)
+save('/saves/prof/autosave1')
+active = false; extensions.hook('onOverhaulActive', false)
+active = true; extensions.hook('onOverhaulActive', true, false)
+local t1 = totalTrips()
+quiet = true; for _ = 1, 60 do extensions.hook('onOverhaulCareerSimStep', 1) end; quiet = false
+check(totalTrips() - t1 <= 3, 'loading a career resets the x60 speed-up')
 local function awayFor(hours)
   save('/saves/prof/autosave1')
   active = false; extensions.hook('onOverhaulActive', false)
