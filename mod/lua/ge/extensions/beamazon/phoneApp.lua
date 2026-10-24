@@ -60,6 +60,26 @@ local function companyData()
   data.truckPrice = beamazon_fleetManager.getTruckPrice()
   data.netPerTruckHour = beamazon_fleetManager.getNetPerTruckHour()
   data.tree = beamazon_company.getTreeView()
+  local sites = beamazon_hq.getSitesOnThisMap and beamazon_hq.getSitesOnThisMap() or {}
+  local sitesByBranch = {}
+  for _, s in ipairs(sites) do
+    if s.branch then sitesByBranch[s.branch] = s end
+  end
+  local branches = {}
+  for _, b in ipairs(beamazon_fleetManager.getBranches()) do
+    local site = sitesByBranch[b.id]
+    table.insert(branches, {
+      id = b.id,
+      name = b.name,
+      price = b.price,
+      slots = b.slots,
+      companyLevel = b.companyLevel,
+      owned = b.owned == true,
+      onThisMap = site ~= nil,
+      siteId = site and site.id or nil,
+    })
+  end
+  data.branches = branches
   return data
 end
 
@@ -130,6 +150,11 @@ local function routeToHq()
   return {ok = beamazon_hq.routeToHq(), data = getData()}
 end
 
+local function routeToSite(siteId)
+  local ok = beamazon_hq.routeToSite and beamazon_hq.routeToSite(siteId) or false
+  return result(ok, not ok and 'noRoute' or nil)
+end
+
 -- {ok, reason, data} for each company action; reason is the module's reason string when ok is false.
 local function result(ok, reason)
   return {ok = ok == true, reason = not ok and reason or nil, data = getData()}
@@ -159,6 +184,7 @@ M.fireDriver = fireDriver
 M.serviceVan = serviceVan
 M.serviceAll = serviceAll
 M.routeToHq = routeToHq
+M.routeToSite = routeToSite
 M.sellVan = sellVan
 M.buyVan = buyVan
 
