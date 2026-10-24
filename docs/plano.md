@@ -96,16 +96,16 @@ A frota é uma empresa que evolui, no modelo do Tuning Shop do RLS (conta e XP p
 
 ## Integração com o RLS
 
-O mod funciona sozinho e, se detectar o RLS ao carregar, troca a camada de adaptação para usar o celular, as garagens e a economia dele.
+**Decisão (Flavio, 2026-10-24): o Beamazon é um addon do RLS.** Suportar a carreira vanilla e o RLS ao mesmo tempo dobraria teste e validação. Sem o RLS, o mod carrega, avisa no log e fica parado. A carreira vanilla pode entrar depois, na expansão.
 
-| Recurso | Sem RLS (vanilla) | Com RLS |
-|---|---|---|
-| Interface | Tela no computador da garagem | App no celular do RLS, com página no app de guia |
-| Vagas de frota | Garagens vanilla | Garagens do app Real Estate, inclusive alugadas e financiadas |
-| Dinheiro | Saldo da carreira | Conta da empresa separada |
-| Preços | Valores fixos do mod | Economia viva do RLS |
-| Compra de vans | À vista | Também por empréstimo do RLS |
-| Modo hardcore | Não se aplica | Receita reduzida, seguindo a regra do RLS |
+| Recurso | Com RLS |
+|---|---|
+| Interface | App no celular do RLS, com página no app de guia |
+| Vagas de frota | Garagens do app Real Estate, inclusive alugadas e financiadas |
+| Dinheiro | Conta da empresa separada |
+| Preços | Economia viva do RLS |
+| Compra de vans | À vista ou por empréstimo do RLS |
+| Modo hardcore | Receita reduzida, seguindo a regra do RLS |
 
 O que já se sabe: a UI do RLS é Vue (fonte em `ui-vue-src`), o celular tem apps de negócios e de guia, e o modo de desafios tem API para outros mods. Addons de terceiros já penduram negócios no RLS ([RLS Dealership](https://www.beamng.com/resources/rls-dealership-for-rls-v2-7-1-1.39524/), [RLS garage valet](https://beamng.com/resources/rls-garage-valet.39782/)).
 
@@ -151,12 +151,14 @@ Comece por um MVP sem UI bonita nem vans visíveis. O que valida a ideia é prov
 2. **Economia:** energia, desgaste, comissão e seguro; planilha de balanceamento; testes com 1, 5 e 20 vans.
 3. **Interface:** app no computador/celular com lista da frota, lucro por van, upgrades e alertas.
 4. **Vitrine:** spawn opcional de vans robô perto do jogador.
-5. **Expansão:** depósitos, eventos aleatórios, cargas extras, RLS e outros mapas.
+5. **Expansão:** depósitos, eventos aleatórios, cargas extras, outros mapas e, se compensar, a carreira vanilla sem o RLS.
 
 | Risco | Impacto | Mitigação |
 |---|---|---|
 | Update do jogo quebra a API da carreira | Alto | Camada de adaptação; testar a cada versão |
 | Conflito com o RLS ou outros mods de carreira | Médio | Não sobrescrever arquivos; só extensões novas |
+| Update do RLS quebra o mod (somos addon dele) | Alto | Toda chamada ao RLS só no `adapter`; testar a cada versão do RLS |
+| Público menor: só quem usa o RLS | Médio | Addons do RLS já são aceitos no repositório oficial (RLS Dealership, garage valet); vanilla fica para a expansão |
 | Economia quebrada (dinheiro infinito) | Médio | Limite de ofertas, retorno decrescente, teto offline |
 | A UI exige Vue e o roteador novo da 0.39 | Médio | Começar com um app simples; estudar a migração do RLS |
 | Van robô não comprável no vanilla | Baixo | A frota abstrata não depende do veículo |

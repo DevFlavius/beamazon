@@ -1,0 +1,10 @@
+{
+  "name": "beamazon-tests",
+  "private": true,
+  "scripts": {
+    "test": "node run.js fleet_test.lua"
+  },
+  "dependencies": {
+    "fengari": "0.1.4"
+  }
+}

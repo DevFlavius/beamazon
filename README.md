@@ -3,7 +3,7 @@
 Mod para o modo carreira do BeamNG.drive: compre vans elétricas autônomas, coloque-as para fazer entregas sozinhas e gerencie a frota como uma empresa, cuidando de energia, desgaste, upgrades e vagas nos depósitos.
 
 - **Jogo:** BeamNG.drive 0.40
-- **Funciona com:** carreira vanilla; integração opcional com o [RLS Career Overhaul](https://github.com/RLS-Modding/rls_career_overhaul)
+- **Requer:** [RLS Career Overhaul](https://github.com/RLS-Modding/rls_career_overhaul) (o Beamazon é um addon dele)
 - **Status:** fase 0 (exploração da API da carreira)
 - **Autores:** Flavio e Bernardo
 

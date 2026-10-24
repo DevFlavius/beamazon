@@ -42,33 +42,34 @@ O `.claude/settings.local.json` (fora do git) já dá acesso de leitura à pasta
 - `fleetSim.lua`: simulação abstrata, com cada van como uma tabela Lua e um tick a cada 1 a 5 s (nunca por frame), incluindo o progresso offline (com teto).
 - `fleetEconomy.lua`: receita pela tabela vanilla de entregas, menos energia, desgaste, comissão e seguro.
 - `fleetVisual.lua`: fase 4, opcional, spawna de 1 a 3 vans robô perto do jogador.
-- A UI vem na fase 3 (computador da garagem; celular do RLS quando ele estiver presente).
+- A UI vem na fase 3, como app no celular do RLS.
 
 A frota **não existe fisicamente** no mapa. As vans vivem como dados. Isso é decisão de desempenho, não reabra.
 
-O mod funciona sozinho. Se detectar o RLS, o `adapter` usa o celular, as garagens e a economia dele. Ele nunca depende do RLS para carregar.
+**O Beamazon é um addon do RLS** (decisão do Flavio, 2026-10-24: suportar os dois dobraria teste e validação). Só o caminho com o RLS é desenvolvido e testado: celular, garagens e economia dele. Sem o RLS, o mod carrega, avisa no log e não faz nada, sem erro. O suporte à carreira vanilla pode voltar no futuro; por isso o `adapter` continua sendo a única camada que fala com a carreira.
 
 ## Ciclo de teste
 
 1. Edite em `mod/`. O jogo lê pelo link, sem copiar nada.
 2. No jogo: `Ctrl+L` recarrega o Lua do jogo e `~` abre o console.
-3. Confira o `beamng.log` (`grep -i frota`). Só está pronto com o console limpo e com o mod testado **sozinho** (sem o RLS) e também com o RLS.
+3. Confira o `beamng.log` (`grep -i beamazon`). Só está pronto com o console limpo e testado com o RLS. Antes de cada release, confira também que, sem o RLS, o mod carrega sem erro e fica parado.
 4. Release: `scripts/pack.sh` gera `dist/beamazon.zip`.
 
 O agente não consegue rodar o jogo. Peça ao Flavio para testar e colar o trecho do log.
 
-## Fase atual: 0 (exploração)
+## Fase atual: 1 (MVP)
 
-Mapeie no código da 0.40.3 e anote em `docs/api-jogo.md` (com caminho e linha):
+Fase 0 concluída em 2026-10-24: `docs/api-jogo.md` preenchido e `beamazon_adapter.creditTest()` testado em jogo.
 
-- `career/modules/delivery/` (`generator.lua`, `general.lua`, `progress.lua`, `parcelManager.lua`): como as ofertas são geradas e quanto pagam.
-- `career/modules/payment.lua` e `playerAttributes.lua`: como o dinheiro entra no saldo.
-- Os hooks de save/load do perfil da carreira.
-- `career/modules/inventory.lua`: slots de garagem e propriedades.
-- A van robô: nome interno e config (procure nos `vehicles/` dentro de `content/vehicles/*.zip`).
-- O RLS: como um addon registra um app no celular (`gameplay/overhaul/career/owners/overhaul_phone_apps_*.json`) e como detectá-lo com segurança.
+O MVP (1 van abstrata, compra por console, simulação por timer, pagamento real no saldo, save) funciona em jogo (2026-10-24, com o RLS): compra, entregas, pagamento no saldo, gravação em `<save>/career/beamazon.json` e a frota volta ao recarregar o save. Medido em jogo: ~$142 de lucro por van-hora, porque a economia viva do RLS paga menos que a fórmula base. Os números de balanceamento esperam a decisão dos irmãos. Comandos no console (GE Lua):
 
-Entregável da fase 0: o `docs/api-jogo.md` preenchido e um "hello world" (`beamazon_adapter` que credita $1 no saldo por comando de console).
+- `beamazon_fleetManager.buyVan()`: compra uma van.
+- `beamazon_fleetManager.status()`: mostra a frota no log.
+- `beamazon_fleetSim.setSpeed(60)`: acelera a frota para teste (1 s de jogo = 1 min de frota; não é salvo).
+
+Todos os números de balanceamento ficam em `mod/lua/ge/extensions/beamazon/balance.lua`. São provisórios até os irmãos decidirem.
+
+Teste da lógica sem o jogo: `cd tests && npm install && npm test` roda os módulos contra um RLS simulado (Lua em JavaScript, `fengari`). Rode depois de cada mudança em `mod/`. Ele não substitui o teste em jogo nem mede balanceamento (a fórmula de pagamento ali é uma cópia, sem a economia viva do RLS).
 
 ## Decisões em aberto (dos irmãos, não do agente)
 
