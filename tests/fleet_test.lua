@@ -613,6 +613,98 @@ local rPhone = beamazon_phoneApp.serviceVan(phoneRow.id)
 check(rPhone.ok and rPhone.data.vans[1].condition == 100 and rPhone.data.vans[1].serviceCost == 0,
   'phone serviceVan works and restores condition to 100%')
 
+-- 11. company branches (Dockyards)
+local branchPois = {}
+hq.onGetRawPoiListForLevel('rls_west_coast', branchPois)
+check(#branchPois == 2, 'POI list on rls_west_coast has 2 elements: got ' .. #branchPois)
+local branchElem
+for _, e in ipairs(branchPois) do
+  if e.data.kind == 'branch' then branchElem = e break end
+end
+check(branchElem and branchElem.data.branch == 'dockyards' and branchElem.data.siteId == 'beamazonDockyardsWestCoast',
+  'Dockyards branch POI element found on rls_west_coast')
+
+-- the Dockyards desk object exists
+local dockDesk = objects.beamazonDockyardsWestCoast_desk
+local dockLaptop = objects.beamazonDockyardsWestCoast_laptop
+check(dockDesk and dockDesk.class == 'TSStatic' and dockDesk.shapeName:find('s_office_desk') and dockDesk.canSave == false,
+  'Dockyards desk object exists and is TSStatic')
+check(dockLaptop and dockLaptop.shapeName:find('s_laptop_ON'), 'Dockyards laptop object exists')
+
+-- the branch card is locked without enough company level (set the company xpEarned low), with the right reason text
+local function branchCard()
+  local list = {}
+  hq.onActivityAcceptGatherData({branchElem.data}, list)
+  return list[1]
+end
+
+local c11 = fm.getCompany()
+c11.xpEarned = 100 -- company level 1 (needs level 3, which is 1500 XP)
+money = 1e6
+local bc = branchCard()
+check(bc and bc.disabled and bc.disableReason == 'Reach company level 3 first',
+  'branch card locked without company level: ' .. tostring(bc and bc.disableReason))
+
+-- buyBranch reasons: unknown, companyLevel, notEnoughMoney, success charges 60000 and the limit grows by 4
+local okB, whyB = fm.buyBranch('nonexistent')
+check(okB == false and whyB == 'unknown', 'buyBranch unknown: ' .. tostring(whyB))
+
+okB, whyB = fm.buyBranch('dockyards')
+check(okB == false and whyB == 'companyLevel', 'buyBranch companyLevel: ' .. tostring(whyB))
+
+c11.xpEarned = 1500 -- company level 3
+money = 100
+okB, whyB = fm.buyBranch('dockyards')
+check(okB == false and whyB == 'notEnoughMoney', 'buyBranch notEnoughMoney: ' .. tostring(whyB))
+bc = branchCard()
+check(bc and bc.disabled and bc.disableReason == 'Not enough money', 'branch card locked without money: ' .. tostring(bc and bc.disableReason))
+
+money = 100000
+local limitBeforeBranch = fm.getVanLimit()
+bc = branchCard()
+check(bc and not bc.disabled and bc.buttonLabel == 'Buy the branch', 'branch card unlocked with level 3 and $100k')
+bc.buttonFun()
+check(fm.ownsBranch('dockyards'), 'Dockyards branch is now owned')
+check(money == 100000 - 60000, 'buyBranch charged $60,000 (money: ' .. money .. ')')
+check(fm.getVanLimit() == limitBeforeBranch + 4, 'limit grew by 4 slots (' .. fm.getVanLimit() .. ')')
+check(ledger[#ledger][2] == 'Beamazon: Beamazon Dockyards' and ledger[#ledger][3] == 'business', 'purchase recorded in ledger')
+fm.status()
+
+-- alreadyOwned
+okB, whyB = fm.buyBranch('dockyards')
+check(okB == false and whyB == 'alreadyOwned', 'buyBranch alreadyOwned: ' .. tostring(whyB))
+
+-- the branch card once owned says "Open the phone"
+bc = branchCard()
+check(bc and bc.buttonLabel == 'Open the phone' and not bc.disabled, 'branch card once owned says Open the phone')
+
+-- the branch survives save/reload
+save('/saves/prof/autosave1')
+active = false; extensions.hook('onOverhaulActive', false)
+check(fm.ownsBranch('dockyards') == false, 'career off: no branch owned')
+active = true; extensions.hook('onOverhaulActive', true, false)
+check(fm.ownsBranch('dockyards') == true and disk['/saves/prof/autosave1/career/beamazon.json'].company.branches.dockyards == true,
+  'branch survives save/reload')
+check(fm.getVanLimit() == limitBeforeBranch + 4, 'van limit with branch survives save/reload')
+
+-- phone data lists the branch with owned = true and onThisMap = true
+local pd3 = beamazon_phoneApp.getData()
+check(type(pd3.company.branches) == 'table' and #pd3.company.branches >= 1, 'phone data has company.branches')
+local phoneBranch
+for _, b in ipairs(pd3.company.branches) do
+  if b.id == 'dockyards' then phoneBranch = b break end
+end
+check(phoneBranch and phoneBranch.owned == true and phoneBranch.onThisMap == true and phoneBranch.siteId == 'beamazonDockyardsWestCoast',
+  'phone branch has owned=true and onThisMap=true')
+
+-- phone routeToSite works with the fake freeroam_bigMapMode used by the HQ route tests
+navTarget = nil
+playerVehicle = nil
+check(beamazon_phoneApp.routeToSite(phoneBranch.siteId).ok == false and navTarget == nil, 'routeToSite refused on foot')
+playerVehicle = {}
+local rSite = beamazon_phoneApp.routeToSite(phoneBranch.siteId)
+check(rSite.ok and navTarget and math.abs(navTarget.x - 469.726) < 0.001, 'routeToSite sets GPS to branch pos')
+
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')

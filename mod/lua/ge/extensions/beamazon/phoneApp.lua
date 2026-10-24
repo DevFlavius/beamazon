@@ -150,14 +150,14 @@ local function routeToHq()
   return {ok = beamazon_hq.routeToHq(), data = getData()}
 end
 
-local function routeToSite(siteId)
-  local ok = beamazon_hq.routeToSite and beamazon_hq.routeToSite(siteId) or false
-  return result(ok, not ok and 'noRoute' or nil)
-end
-
 -- {ok, reason, data} for each company action; reason is the module's reason string when ok is false.
 local function result(ok, reason)
   return {ok = ok == true, reason = not ok and reason or nil, data = getData()}
+end
+
+local function routeToSite(siteId)
+  local ok = beamazon_hq.routeToSite and beamazon_hq.routeToSite(siteId) or false
+  return result(ok, not ok and 'noRoute' or nil)
 end
 
 local function buyTruck() return result(beamazon_fleetManager.buyTruck()) end
