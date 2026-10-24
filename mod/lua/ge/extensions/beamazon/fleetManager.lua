@@ -27,7 +27,8 @@ local function newFleet()
     version = saveVersion,
     nextVanId = 1,
     vans = {},
-    totals = {trips = 0, revenue = 0, costs = 0, net = 0},
+    -- vanSeconds and timedNet feed the per-van-hour rate; saves from before them start both at 0.
+    totals = {trips = 0, revenue = 0, costs = 0, net = 0, vanSeconds = 0, timedNet = 0},
   }
 end
 
@@ -93,6 +94,19 @@ local function getTotals()
   return fleet and fleet.totals or nil
 end
 
+-- Net profit per van-hour, or nil until the fleet has worked one van-hour.
+local function getNetPerVanHour()
+  local totals = fleet and fleet.totals
+  if not totals or totals.vanSeconds < 3600 then return nil end
+  return totals.timedNet / (totals.vanSeconds / 3600)
+end
+
+-- Called by fleetSim each time the fleet advances by dt fleet seconds.
+local function addWorkTime(dt)
+  if not fleet then return end
+  fleet.totals.vanSeconds = fleet.totals.vanSeconds + dt * #fleet.vans
+end
+
 -- True, or false and the reason: 'careerInactive' or 'notEnoughMoney'.
 local function buyVan()
   if not ensureLoaded() then
@@ -142,6 +156,7 @@ local function recordTrip(van, result)
   fleet.totals.revenue = fleet.totals.revenue + result.revenue
   fleet.totals.costs = fleet.totals.costs + costs
   fleet.totals.net = fleet.totals.net + result.net
+  fleet.totals.timedNet = fleet.totals.timedNet + result.net
   log('D', logTag, string.format('%s delivered %d parcel(s) over %.1f km: revenue $%.2f, energy $%.2f, wear $%.2f, commission $%.2f, net $%.2f',
     van.name, #van.trip.parcels, van.trip.routeKm, result.revenue, result.energy, result.wear, result.commission, result.net))
 end
@@ -154,6 +169,9 @@ local function status()
   local totals = fleet.totals
   log('I', logTag, string.format('fleet: %d van(s), %d trip(s), revenue $%.2f, costs $%.2f, net $%.2f',
     #fleet.vans, totals.trips, totals.revenue, totals.costs, totals.net))
+  local perHour = getNetPerVanHour()
+  log('I', logTag, perHour and string.format('  net $%.2f per van-hour over %.1f van-hours', perHour, totals.vanSeconds / 3600)
+    or '  net per van-hour: needs 1 van-hour of work')
   for _, van in ipairs(fleet.vans) do
     local doing = 'idle'
     if van.trip then
@@ -185,6 +203,8 @@ end
 M.ensureLoaded = ensureLoaded
 M.getVans = getVans
 M.getTotals = getTotals
+M.getNetPerVanHour = getNetPerVanHour
+M.addWorkTime = addWorkTime
 M.buyVan = buyVan
 M.takeOfflineSeconds = takeOfflineSeconds
 M.payOut = payOut

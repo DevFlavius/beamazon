@@ -104,6 +104,10 @@ check(math.abs(money - base - (vans[1].net + vans[2].net)) < 0.01, 'after a save
 check(disk['/saves/prof/autosave1/career/playerattributes.json'].money == money, 'saved balance includes every trip')
 check(ledger[#ledger][3] == 'business', 'ledger category business')
 beamazon_fleetManager.status()
+local totals = beamazon_fleetManager.getTotals()
+local perHour = beamazon_fleetManager.getNetPerVanHour()
+check(math.abs(totals.vanSeconds - 2 * 3602) < 0.01, 'van time: 2 vans x 3602 s, got ' .. totals.vanSeconds)
+check(perHour and math.abs(perHour - totals.timedNet / (totals.vanSeconds / 3600)) < 0.01 and perHour > 0, 'net per van-hour: $' .. tostring(perHour))
 
 -- 3. save and reload
 check(disk['/saves/prof/autosave1/career/beamazon.json'].savedAt == now, 'saved to <savePath>/career/beamazon.json with savedAt')
@@ -147,7 +151,7 @@ check(gained <= 3, 'clock moved back: no offline progress')
 
 -- 6. phone app
 local d = beamazon_phoneApp.getData()
-check(d.active and #d.vans == 3 and d.vanPrice == 1000 and d.totals.trips > 0, 'phone data: vans, price and totals')
+check(d.active and #d.vans == 3 and d.vanPrice == 1000 and d.totals.trips > 0 and d.netPerVanHour > 0, 'phone data: vans, price, totals and rate')
 check(d.vans[1].progress >= 0 and d.vans[1].progress <= 1 and type(d.vans[1].name) == 'string', 'phone data: van rows')
 money = 0
 local r = beamazon_phoneApp.buyVan()

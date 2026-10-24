@@ -57,14 +57,21 @@ A frota **não existe fisicamente** no mapa. As vans vivem como dados. Isso é d
 
 O agente não consegue rodar o jogo. Peça ao Flavio para testar e colar o trecho do log.
 
+O jogo demora a carregar, então os testes vão em lotes. A fila fica em `docs/testes.md`:
+
+- **Crítico** (dinheiro, save, ou algo que pode impedir o mod ou a carreira de carregar): vai para o próximo lote de teste, pequeno.
+- **Não crítico** (UI, texto, estatística, log): acumula e é testado junto.
+
+Toda mudança em `mod/` entra na fila com a categoria e os passos. Item testado sai da fila e vira uma linha em "Testado".
+
 ## Fase atual: 1 (MVP)
 
 Fase 0 concluída em 2026-10-24: `docs/api-jogo.md` preenchido e `beamazon_adapter.creditTest()` testado em jogo.
 
-O MVP (1 van abstrata, compra por console, simulação por timer, pagamento real no saldo, save) funciona em jogo (2026-10-24, com o RLS): compra, entregas, pagamento no saldo, gravação em `<save>/career/beamazon.json` e a frota volta ao recarregar o save. Medido em jogo: ~$142 de lucro por van-hora, porque a economia viva do RLS paga menos que a fórmula base. Os números de balanceamento esperam a decisão dos irmãos. Comandos no console (GE Lua):
+O MVP (1 van abstrata, compra por console, simulação por timer, pagamento real no saldo, save) funciona em jogo (2026-10-24, com o RLS): compra, entregas, pagamento no saldo, gravação em `<save>/career/beamazon.json` e a frota volta ao recarregar o save. Medido em jogo: ~$142 de lucro por van-hora, porque a economia viva do RLS paga menos que a fórmula base (ela já inclui a dificuldade do save: difícil e hardcore pagam ×0,5). Os números de balanceamento esperam a decisão dos irmãos. Comandos no console (GE Lua):
 
 - `beamazon_fleetManager.buyVan()`: compra uma van.
-- `beamazon_fleetManager.status()`: mostra a frota no log.
+- `beamazon_fleetManager.status()`: mostra a frota no log, com o lucro por van-hora depois de 1 van-hora de trabalho.
 - `beamazon_fleetSim.setSpeed(60)`: acelera a frota para teste (1 s de jogo = 1 min de frota; não é salvo).
 
 Fase 2, peças que não dependem de balanceamento (2026-10-24, testadas só no RLS simulado):

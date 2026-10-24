@@ -35,6 +35,7 @@ local function advanceFleet(dt)
   for _, van in ipairs(beamazon_fleetManager.getVans()) do
     advanceVan(van, dt)
   end
+  beamazon_fleetManager.addWorkTime(dt)
 end
 
 -- The work done while the player was away, paid as its own ledger entry.

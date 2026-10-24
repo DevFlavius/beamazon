@@ -20,6 +20,7 @@
         <div><span>Trips</span><strong>{{ data.totals?.trips ?? 0 }}</strong></div>
         <div><span>Profit</span><strong>{{ money(data.totals?.net ?? 0) }}</strong></div>
       </div>
+      <div v-if="typeof data.netPerVanHour === 'number'" class="rate">{{ money(data.netPerVanHour) }} profit per van-hour</div>
 
       <button class="buy-button" type="button" :disabled="buying" @click="buyVan">
         Buy a van · {{ money(data.vanPrice) }}
@@ -56,7 +57,7 @@ import { vBngUiNavScroll } from "@/common/directives"
 
 const refreshMs = 2000
 
-const data = reactive({ active: false, vanPrice: 0, totals: null, vans: [] })
+const data = reactive({ active: false, vanPrice: 0, totals: null, netPerVanHour: null, vans: [] })
 const loaded = ref(false)
 const buying = ref(false)
 const message = ref("")
@@ -76,6 +77,7 @@ function apply(payload) {
   data.active = payload.active === true
   data.vanPrice = payload.vanPrice ?? 0
   data.totals = payload.totals ?? null
+  data.netPerVanHour = payload.netPerVanHour ?? null
   data.vans = payload.vans ?? []
   loaded.value = true
 }
@@ -169,6 +171,12 @@ onUnmounted(() => {
     overflow: hidden;
     text-overflow: ellipsis;
   }
+}
+
+.rate {
+  color: #fcd9a8;
+  font-size: 0.78rem;
+  padding: 0 2px;
 }
 
 .buy-button {

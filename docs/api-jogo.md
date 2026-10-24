@@ -83,7 +83,7 @@ RLS (é o que o MVP usa):
 - [x] A fórmula do RLS (`calculators.lua:240`) é outra que a vanilla: ela calibra cada volume por uma meta de pagamento a 4 milhas (6,4 km) por faixa de slots (`RLS: .../logistics/logisticsBalance.lua:31` e `:77`): até 16 slots paga $37,50, até 32 paga $75, até 64 paga $150, até 128 paga $300 (já com o ×1,5 de `:6`). Um volume de 1 slot paga quase o mesmo que um de 16.
 - [x] Tipos de volume: `require('overhaul/lib/logistics/templates').getTemplatesByLogisticType('parcel')` (`RLS: lua/ge/extensions/overhaul/lib/logistics/templates.lua:114`), lidos dos mesmos `gameplay/delivery/*.deliveryParcels.json` (`:32-38`). Cada tipo traz `slots` e `weight` como listas e `generationChance`.
 - [x] Como o RLS sorteia um volume (modelo do `fleetEconomy.rollTrip`): slots e peso ao acaso das listas, peso com ±10% (`RLS: lua/ge/extensions/overhaul/career/logistics/generator/offers.lua:234-248`).
-- [ ] Modo hardcore: o `calculators` tem um multiplicador (`:206-212`), mas não está claro onde o RLS o aplica no dinheiro das entregas. Ver na fase 2.
+- [x] Dificuldade (fácil, normal, difícil, hardcore): já vem embutida no `getParcelReward`, nada a espelhar. Cada modo tem um `rewardMultiplier` (`RLS: .../career/economy/difficultyMode.lua:15-18`: fácil ×3, normal ×1, difícil e hardcore ×0,5). O `economyAdjusterPolicy` multiplica a economia de cada seção por ele (`.../career/economy/economyAdjusterPolicy.lua:119` e `:290-305`), e o `calculators` lê a seção `delivery_parcel` (`:324`). O `setHardcoreMultiplier` do `calculators` (`:206`) não tem quem chame. Isso explica o pagamento menor que o do teste fora do jogo: a frota ganha o que o jogador ganharia na mesma dificuldade.
 
 ## Garagens e propriedades
 

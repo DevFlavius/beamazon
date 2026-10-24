@@ -36,6 +36,7 @@ local function getData()
     active = true,
     vanPrice = balance.vanPrice,
     totals = beamazon_fleetManager.getTotals(),
+    netPerVanHour = beamazon_fleetManager.getNetPerVanHour(),
     vans = vans,
   }
 end
