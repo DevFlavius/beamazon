@@ -7,6 +7,18 @@ local balance = require('beamazon/balance')
 
 local function vanRow(van)
   local cond = van.condition or 1
+  local upgrades = {}
+  for _, def in ipairs(balance.vehicleUpgrades or {}) do
+    local level = (van.upgrades and van.upgrades[def.id]) or 0
+    table.insert(upgrades, {
+      id = def.id,
+      title = def.title,
+      description = def.description,
+      level = level,
+      maxLevel = def.maxLevel,
+      cost = beamazon_fleetManager.getVehicleUpgradeCost(van, def.id),
+    })
+  end
   local row = {
     id = van.id,
     kind = van.kind,
@@ -22,6 +34,7 @@ local function vanRow(van)
     brokenMinutes = (van.brokenFor and van.brokenFor > 0) and math.ceil(van.brokenFor / 60) or 0,
     serviceCost = beamazon_fleetManager.getServiceCost(van),
     breakdowns = tonumber(van.breakdowns) or 0,
+    upgrades = upgrades,
   }
   if van.kind == 'truck' then
     local driver = beamazon_company.getTruckDriver(van)
@@ -175,6 +188,10 @@ local function serviceAll()
   beamazon_fleetManager.serviceAll()
   return result(true)
 end
+local function upgradeVehicle(vanId, upgradeId)
+  local ok, reason = beamazon_fleetManager.upgradeVehicle(vanId, upgradeId)
+  return result(ok, reason)
+end
 
 M.getData = getData
 M.buyTruck = buyTruck
@@ -183,6 +200,7 @@ M.hireDriver = hireDriver
 M.fireDriver = fireDriver
 M.serviceVan = serviceVan
 M.serviceAll = serviceAll
+M.upgradeVehicle = upgradeVehicle
 M.routeToHq = routeToHq
 M.routeToSite = routeToSite
 M.sellVan = sellVan

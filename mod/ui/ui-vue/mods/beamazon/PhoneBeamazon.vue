@@ -66,6 +66,9 @@
               <div class="condition-bar"><div class="condition-fill" :class="conditionClass(van.condition)" :style="{ width: van.condition + '%' }"></div></div>
             </div>
             <div class="card-buttons">
+              <button class="small-button" type="button" :class="{ active: openUpgradesVanId === van.id }" @click="toggleUpgrades(van.id)">
+                Upgrades
+              </button>
               <button v-if="van.condition < 100" class="small-button service" type="button" :disabled="busy" @click="act(`serviceVan(${Number(van.id)})`, `${van.name} serviced.`)">
                 Service {{ money(van.serviceCost) }}
               </button>
@@ -73,6 +76,23 @@
                 <template v-if="confirmId === 'sell' + van.id">Tap again to sell for {{ money(van.sellValue) }}</template>
                 <template v-else>Sell · {{ money(van.sellValue) }}</template>
               </button>
+            </div>
+            <div v-if="openUpgradesVanId === van.id" class="van-upgrades">
+              <div v-for="u in asList(van.upgrades)" :key="u.id" class="upgrade-row">
+                <div class="upgrade-info">
+                  <div class="upgrade-header">
+                    <strong>{{ u.title }}</strong>
+                    <span class="upgrade-level">Lv {{ u.level }}/{{ u.maxLevel }}</span>
+                  </div>
+                  <div class="upgrade-desc">{{ u.description }}</div>
+                </div>
+                <div class="upgrade-action">
+                  <button v-if="u.level < u.maxLevel" class="small-button buy" type="button" :disabled="busy" @click="act(`upgradeVehicle(${Number(van.id)}, '${safeId(u.id)}')`, `${van.name}: ${u.title} upgraded.`)">
+                    {{ money(u.cost) }}
+                  </button>
+                  <span v-else class="max-badge">Max</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -240,6 +260,11 @@ const confirmId = ref(null)
 const confirmMs = 4000
 let confirmTimer = null
 let timer = null
+const openUpgradesVanId = ref(null)
+
+function toggleUpgrades(vanId) {
+  openUpgradesVanId.value = openUpgradesVanId.value === vanId ? null : vanId
+}
 
 // An empty Lua table arrives as {} instead of [].
 const asList = (value) => (Array.isArray(value) ? value : Object.values(value || {}))
@@ -719,9 +744,74 @@ onUnmounted(() => {
     color: #fff;
   }
 
+  &.active {
+    background: rgba(217, 119, 6, 0.35);
+    border-color: #d97706;
+    color: #fff;
+  }
+
   &:disabled {
     opacity: 0.6;
   }
+}
+
+.van-upgrades {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.upgrade-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+
+.upgrade-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.upgrade-header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+
+  strong {
+    font-size: 0.85rem;
+    color: #fff;
+  }
+}
+
+.upgrade-level {
+  font-size: 0.75rem;
+  color: #fcd9a8;
+  font-weight: 600;
+}
+
+.upgrade-desc {
+  font-size: 0.72rem;
+  color: #cfc6bb;
+}
+
+.upgrade-action {
+  flex: 0 0 auto;
+}
+
+.max-badge {
+  font-size: 0.75rem;
+  color: #a3a3a3;
+  font-weight: 600;
+  padding: 2px 6px;
 }
 
 .progress-fill {
