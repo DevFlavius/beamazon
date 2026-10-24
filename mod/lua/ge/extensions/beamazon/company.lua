@@ -53,19 +53,26 @@ local function getLevel()
   return {level = level, xpEarned = earned, current = balance.companyLevelXp[level], next = balance.companyLevelXp[level + 1]}
 end
 
--- Called by fleetManager for each trip's net profit.
-local function addXpFromProfit(net)
+-- Adds company XP directly and triggers a toast if the company levels up.
+local function addXp(amount)
   local c = company()
-  if not c or net <= 0 then return end
+  local val = tonumber(amount) or 0
+  if not c or val <= 0 then return end
   local before = getLevel().level
-  local gained = net * balance.companyXpPerDollar * (1 + getEffect('xpGain'))
-  c.xp = c.xp + gained
-  c.xpEarned = c.xpEarned + gained
+  c.xp = c.xp + val
+  c.xpEarned = c.xpEarned + val
   local after = getLevel().level
   if after > before then
     log('I', logTag, 'company reached level ' .. after)
     guihooks.trigger('toastrMsg', {type = 'success', title = 'Beamazon', msg = 'Your company reached level ' .. after .. '.'})
   end
+end
+
+-- Called by fleetManager for each trip's net profit.
+local function addXpFromProfit(net)
+  if not net or net <= 0 then return end
+  local gained = net * balance.companyXpPerDollar * (1 + getEffect('xpGain'))
+  addXp(gained)
 end
 
 local function costAt(cost, level)
@@ -201,6 +208,7 @@ M.getUpgradeLevel = getUpgradeLevel
 M.getEffect = getEffect
 M.getLevel = getLevel
 M.addXpFromProfit = addXpFromProfit
+M.addXp = addXp
 M.canBuy = canBuy
 M.buyUpgrade = buyUpgrade
 M.getTreeView = getTreeView
