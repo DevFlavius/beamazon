@@ -68,6 +68,8 @@ Limites contra dinheiro infinito:
 
 ## Slots e depósitos
 
+> **Substituído (2026-10-24):** as vans de pessoa física vêm do nível de Logística e, na empresa, as vagas vêm das sedes e filiais, pontos do mapa com computador (ver "Empresa de entregas"). As vagas não estão mais ligadas às garagens do RLS. O texto abaixo fica só como histórico.
+
 A frota usa **vagas de frota próprias**, ligadas às propriedades do jogador, e não os slots de carro da garagem (a maior garagem tem uns 10 slots, e a frota tiraria espaço dos carros pessoais).
 
 - A primeira propriedade libera 1 ou 2 vans.
@@ -175,14 +177,33 @@ A frota não existe fisicamente. 50 vans como registros de dados custam quase na
 
 ## Roadmap
 
-Comece por um MVP sem UI bonita nem vans visíveis. O que valida a ideia é provar que a frota gera e gasta dinheiro de forma equilibrada.
+Atualizado em 2026-10-24. As fases 0 a 3 do plano original viraram os blocos "Feito" abaixo.
 
-0. **Exploração (1 a 2 semanas):** mapear as entregas, o dinheiro, o save/load e os slots no código da 0.40 e testar no console.
-1. **MVP (2 a 4 semanas):** 1 van abstrata, compra por comando de console, simulação por timer, pagamento real no saldo e persistência no save.
-2. **Economia:** energia, desgaste, comissão e seguro; planilha de balanceamento; testes com 1, 5 e 20 vans.
-3. **Interface:** app no computador/celular com lista da frota, lucro por van, upgrades e alertas.
-4. **Vitrine:** spawn opcional de vans robô perto do jogador.
-5. **Expansão:** depósitos, eventos aleatórios, cargas extras, outros mapas e, se compensar, a carreira vanilla sem o RLS.
+### Feito
+
+1. **Exploração (fase 0):** API do jogo e do RLS mapeada em `docs/api-jogo.md`.
+2. **MVP (fase 1):** compra de van, entregas abstratas, pagamento no saldo, save. Testado em jogo.
+3. **Peças da fase 2:** progresso offline (teto de 8 h), pagamento em lote, lucro por van-hora, um pouco de XP de Logística. Testado em jogo.
+4. **App no celular (fase 3, v1):** frota, progresso das viagens, botão de compra. Testado em jogo.
+5. **Balanceamento, rodada 1:** vans pelo nível de Logística (5, 10, 15) e preço médio de $7.500 com o sorteio e o mercado do RLS. Testado em jogo (falta o item 9b).
+
+### Próximo: a empresa (decidido, falta fazer)
+
+6. **Venda de van:** parte do preço pago, desvaloriza e segue o índice de venda do RLS. Espera a regra de desvalorização.
+7. **Sede:** o nível 20 de Logística libera a compra; computador no ponto "Logistics"; umas 5 vagas; vaga é vaga (van ou caminhão).
+8. **XP e árvore de habilidades da empresa:** a frota dá XP à empresa; a árvore libera motoristas, vagas e eficiência.
+9. **Caminhão H-Series (~$18.000) e motoristas:** entregas maiores e mais longas; cada caminhão precisa de um motorista com salário; sem motorista, fica parado sem custo.
+10. **Filiais:** outros pontos do mapa (as Dockyards primeiro), cada uma com as suas vagas.
+11. **Tenda na sede**, no lugar da barreira.
+
+### Depois (do plano original, ainda sem decisão)
+
+12. **Custos que faltam:** seguro por dia de jogo; revisão periódica, com pane se atrasar.
+13. **Upgrades por van:** motor, bateria, baú, software de rota.
+14. **Contra o dinheiro infinito:** retorno decrescente com muitas vans; eventos aleatórios (pane, acidente, reclamação).
+15. **Vitrine (fase 4):** de 1 a 3 vans robô andando perto do jogador, opcional.
+16. **Release:** checagem sem o RLS, zip, publicação.
+17. **Expansão (fase 5):** outros mapas e, se compensar, a carreira vanilla.
 
 | Risco | Impacto | Mitigação |
 |---|---|---|
