@@ -9,13 +9,34 @@ return {
     {level = 10, vans = 2},
     {level = 15, vans = 3},
   },
-  vanResaleShare = 0.85,
+  vanResaleShare = 0.85,          -- a sold vehicle returns this share of its price, times the RLS vehicle market (decided 2026-10-24)
 
   -- The company HQ (decided 2026-10-24): bought on the map at Logistics level 20; its slots hold vans or trucks.
   hqPrice = 80000,
   hqUnlockLevel = 20,
-  hqSlots = 5,                    -- example from Bernardo, still provisional
-          -- a sold van returns this share of its price, times the RLS vehicle market (decided 2026-10-24)
+  hqSlots = 5,                    -- example from Bernardo, still provisional; added to the personal vans (3 + 5 = 8)
+
+  -- Everything below this line up to "A trip" is PROVISIONAL (agent, 2026-10-24 night), waiting for the brothers.
+  -- The company earns its own XP from the fleet's profit and spends it, with money, on the skill tree (companyTree.lua),
+  -- like the RLS business trees.
+  companyXpPerDollar = 0.01,      -- 1 company XP per $100 of fleet net profit (~50 XP per van-hour)
+  -- Total XP earned for each company level (shown in the app; the tree spends XP, levels never go down).
+  companyLevelXp = {0, 500, 1500, 3500, 7000, 12000, 20000, 32000, 50000, 75000},
+
+  -- The H-Series truck: needs the company and a hired driver; parked (no income, no cost) without one.
+  truckPrice = 18000,             -- $ average, drawn like the van
+  driversAtFounding = 1,          -- Bernardo: buying the HQ gives 1 driver; the tree adds more
+  driverWageShare = 0.30,         -- the driver's pay is this share of each truck trip's revenue ("proporcional ao que rende")
+  truck = {
+    capacitySlots = 96,
+    maxParcels = 14,
+    routeKmMin = 8,
+    routeKmMax = 20,
+    avgSpeedKmh = 45,
+    handlingMinutesPerParcel = 1.5,
+    energyKwhPerKm = 0.9,         -- diesel priced as energy, to keep one cost model
+    wearPerKm = 0.45,
+  },
 
   -- A trip: the van loads parcels at the depot, drives the route, delivers and comes back.
   vanCapacitySlots = 24,          -- cargo slots per trip

@@ -13,29 +13,38 @@ local maxTripsPerAdvance = 500
 local speed = 1
 local pendingSeconds = 0
 
--- Advances one van by dt fleet seconds.
+-- Advances one vehicle by dt fleet seconds. A truck needs a driver; without one it stays parked
+-- (its trip in progress waits).
 local function advanceVan(van, dt)
+  local driver
+  if van.kind == 'truck' then
+    driver = beamazon_company.getTruckDriver(van)
+    if not driver then return false end
+  end
   for _ = 1, maxTripsPerAdvance do
     if not van.trip then
-      van.trip = beamazon_fleetEconomy.rollTrip()
+      van.trip = beamazon_fleetEconomy.rollTrip(van.kind)
       van.tripElapsed = 0
-      if not van.trip then return end
+      if not van.trip then return true end
     end
     van.tripElapsed = van.tripElapsed + dt
-    if van.tripElapsed < van.trip.durationS then return end
+    if van.tripElapsed < van.trip.durationS then return true end
 
     dt = van.tripElapsed - van.trip.durationS
-    beamazon_fleetManager.recordTrip(van, beamazon_fleetEconomy.settleTrip(van.trip))
+    local wageShare = driver and beamazon_company.getDriverWageShare() or nil
+    beamazon_fleetManager.recordTrip(van, beamazon_fleetEconomy.settleTrip(van.trip, wageShare), driver)
     van.trip = nil
     van.tripElapsed = 0
   end
+  return true
 end
 
 local function advanceFleet(dt)
+  local workingTrucks = 0
   for _, van in ipairs(beamazon_fleetManager.getVans()) do
-    advanceVan(van, dt)
+    if advanceVan(van, dt) and van.kind == 'truck' then workingTrucks = workingTrucks + 1 end
   end
-  beamazon_fleetManager.addWorkTime(dt)
+  beamazon_fleetManager.addWorkTime(dt, workingTrucks)
 end
 
 -- The work done while the player was away, paid as its own ledger entry.

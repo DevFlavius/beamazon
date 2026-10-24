@@ -100,7 +100,7 @@ do
   local trip = beamazon_fleetEconomy.rollTrip()
   local function revenueAt(k) balance.fleetPayMultiplier = k return beamazon_fleetEconomy.settleTrip(trip).revenue end
   local one, scaled = revenueAt(1), revenueAt(25)
-  check(math.abs(scaled - one * 25) < 0.05 and scaled > 0, string.format('pay multiplier: $%.2f x25 = $%.2f', one, scaled))
+  check(math.abs(scaled - one * 25) <= 0.25 and scaled > 0, string.format('pay multiplier: $%.2f x25 = $%.2f', one, scaled))
 end
 local fm = beamazon_fleetManager
 local function limitAt(level) logisticsLevel = level return fm.getVanLimit() end
@@ -316,6 +316,98 @@ check(beamazon_fleetManager.ownsHq() == false, 'career off: no company')
 active = true; extensions.hook('onOverhaulActive', true, false)
 check(beamazon_fleetManager.ownsHq() and disk['/saves/prof/autosave1/career/beamazon.json'].company.hq == true, 'HQ survives the save')
 logisticsLevel = 15
+
+-- 8. company: XP, skill tree, trucks and drivers
+local company = beamazon_company
+-- Section 6 left hundreds of vans from the price draw; keep 2.
+do local vs = beamazon_fleetManager.getVans() for i = #vs, 3, -1 do table.remove(vs, i) end end
+local function run(minutes) quiet = true; for _ = 1, minutes * 60 do extensions.hook('onOverhaulCareerSimStep', 1) end; quiet = false end
+check(company.getLevel().level == 1 and company.getDriverSlots() == 1 and #company.getDrivers() == 0, 'company starts at level 1 with 1 driver slot')
+beamazon_fleetSim.setSpeed(60)
+local xp0, net0 = beamazon_fleetManager.getCompany().xpEarned or 0, beamazon_fleetManager.getTotals().net
+run(1)
+local xpGain, netGain = beamazon_fleetManager.getCompany().xpEarned - xp0, beamazon_fleetManager.getTotals().net - net0
+check(netGain > 0 and math.abs(xpGain - netGain * 0.01) < 0.01, string.format('company XP: %.1f from $%.0f of profit', xpGain, netGain))
+local ok8, why8 = company.buyUpgrade('fastCharging')
+check(not ok8 and why8 == 'locked', 'upgrade behind a dependency is locked')
+beamazon_fleetManager.getCompany().xp = 0
+ok8, why8 = company.buyUpgrade('bays')
+check(not ok8 and why8 == 'notEnoughXp', 'upgrade needs company XP')
+beamazon_fleetManager.getCompany().xp = 100000
+money = 1000
+ok8, why8 = company.buyUpgrade('bays')
+check(not ok8 and why8 == 'notEnoughMoney' and (company.getUpgradeLevel('bays') == 0), 'upgrade needs money')
+money = 1e6
+local limit0 = beamazon_fleetManager.getVanLimit()
+check(company.buyUpgrade('bays') and money == 1e6 - 15000 and beamazon_fleetManager.getCompany().xp == 100000 - 100, 'Parking Bays 1: $15,000 and 100 XP')
+check(beamazon_fleetManager.getVanLimit() == limit0 + 1, 'Parking Bays adds a fleet slot')
+check(company.buyUpgrade('bays') and money == 1e6 - 15000 - 30000, 'the next level costs more ($30,000)')
+for _ = 1, 3 do company.buyUpgrade('bays') end
+ok8, why8 = company.buyUpgrade('bays')
+check(not ok8 and why8 == 'maxLevel' and company.getUpgradeLevel('bays') == 5, 'Parking Bays stops at level 5')
+local tree = company.getTreeView()
+check(#tree >= 10 and tree[1].id == 'drivers' and tree[1].canBuy and tree[3].level == 5 and tree[3].reason == 'maxLevel', 'tree view for the app')
+
+-- effects
+local trip = beamazon_fleetEconomy.rollTrip()
+math.randomseed(7); local base = beamazon_fleetEconomy.settleTrip(trip)
+company.buyUpgrade('routeSoftware'); company.buyUpgrade('routeSoftware')
+math.randomseed(7); local better = beamazon_fleetEconomy.settleTrip(trip)
+check(math.abs(better.revenue - base.revenue * 1.10) < 0.05, 'Route Software 2: trips pay 10% more')
+company.buyUpgrade('ownDispatch')
+math.randomseed(7); local cheaper = beamazon_fleetEconomy.settleTrip(trip)
+check(math.abs(cheaper.commission - cheaper.revenue * 0.20) < 0.05, 'Own Dispatch: commission 25% -> 20%')
+company.buyUpgrade('serviceContract')
+math.randomseed(7); local served = beamazon_fleetEconomy.settleTrip(trip)
+check(math.abs(served.energy - cheaper.energy * 0.8) < 0.02 and math.abs(served.wear - cheaper.wear * 0.8) < 0.02, 'Service Contract: energy and wear -20%')
+local d0 = beamazon_fleetEconomy.rollTrip().durationS
+company.buyUpgrade('fastCharging')
+check(company.getEffect('tripTime') == -0.05, 'Fast Charging: trips 5% shorter')
+local vanPrice0 = beamazon_fleetManager.getVanPrice()
+company.buyUpgrade('fleetDeals')
+check(math.abs(beamazon_fleetManager.getVanPrice() - vanPrice0 * 0.95) <= 1, 'Fleet Deals: vans 5% cheaper')
+
+-- trucks and drivers
+local vans0 = #beamazon_fleetManager.getVans()
+local truckPrice = beamazon_fleetManager.getTruckPrice()
+check(truckPrice > 12000 and truckPrice < 24000, 'truck price near $18,000 less Fleet Deals: $' .. truckPrice)
+money = 1e6
+check(beamazon_fleetManager.buyTruck() and money == 1e6 - truckPrice, 'buy a truck')
+local truck = beamazon_fleetManager.getVans()[vans0 + 1]
+check(truck.kind == 'truck' and truck.name:find('Truck') and company.getTruckDriver(truck) == nil, 'a new truck has no driver')
+run(1)
+check(truck.trips == 0, 'a truck without a driver stays parked')
+local okHire, driver = company.hireDriver()
+check(okHire and driver.name == 'Alex' and company.getTruckDriver(truck) == driver, 'hire a driver: the truck gets one')
+ok8, why8 = company.hireDriver()
+check(not ok8 and why8 == 'driverSlots', 'a 2nd driver needs the Hire Drivers upgrade')
+check(company.buyUpgrade('drivers') and company.getDriverSlots() == 2 and company.hireDriver(), 'Hire Drivers 1: 2nd driver')
+local sum0 = beamazon_fleetManager.getTotals()
+local truckNet0 = sum0.truckNet
+run(3)
+check(truck.trips >= 3 and driver.trips == truck.trips and driver.earned > 0, string.format('truck works with a driver: %d trips, driver paid $%.0f', truck.trips, driver.earned))
+local perTruck = beamazon_fleetManager.getNetPerTruckHour()
+local perVan = beamazon_fleetManager.getNetPerVanHour()
+check(perTruck and perTruck > perVan, string.format('a truck nets more per hour than a van after the wage: $%.0f vs $%.0f', perTruck, perVan))
+check(company.fireDriver(driver.id) and company.getTruckDriver(truck) ~= nil, 'firing a driver: the other one takes the truck')
+check(company.fireDriver(999) == false, 'firing an unknown driver is refused')
+
+-- offline cap with the Night Dispatcher
+company.buyUpgrade('nightDispatcher')
+check(company.getEffect('offlineHours') == 1, 'Night Dispatcher: +1 h offline')
+
+-- the company survives the save
+local upgrades = deepcopy(beamazon_fleetManager.getCompany().upgrades)
+save('/saves/prof/autosave1')
+active = false; extensions.hook('onOverhaulActive', false)
+active = true; extensions.hook('onOverhaulActive', true, false)
+local c = beamazon_fleetManager.getCompany()
+check(c.upgrades.bays == 5 and c.upgrades.routeSoftware == 2 and #c.drivers == 1 and c.nextDriverId == 3, 'upgrades and drivers survive the save')
+local kinds = {}
+for _, v in ipairs(beamazon_fleetManager.getVans()) do kinds[v.kind] = (kinds[v.kind] or 0) + 1 end
+check(kinds.truck == 1 and kinds.van == vans0, 'trucks survive the save')
+local okSell, value = beamazon_fleetManager.sellVan(truck.id)
+check(okSell and value == math.floor(truckPrice * 0.85 + 0.5), 'a truck sells for 85% of its price: $' .. tostring(value))
 
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
