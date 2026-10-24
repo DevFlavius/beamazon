@@ -67,6 +67,7 @@ dofile(MOD_DIR .. '/scripts/beamazon/modScript.lua')
 check(beamazon_fleetManager.buyVan() == false, 'no RLS: buyVan refuses')
 beamazon_fleetSim.onBeamazonSimStep(5)
 check(beamazon_adapter.addMoney(1) == false, 'no RLS: addMoney refuses')
+check(beamazon_phoneApp.getData().active == false, 'no RLS: phone shows career not active')
 
 -- 2. with RLS
 _G.overhaul_career_career_dummy = nil
@@ -143,4 +144,17 @@ gained = awayFor(48)
 check(gained >= 30 and gained <= 120, '48 h away is capped at 8 h: ' .. gained .. ' trips')
 gained = awayFor(-5)
 check(gained <= 3, 'clock moved back: no offline progress')
+
+-- 6. phone app
+local d = beamazon_phoneApp.getData()
+check(d.active and #d.vans == 3 and d.vanPrice == 1000 and d.totals.trips > 0, 'phone data: vans, price and totals')
+check(d.vans[1].progress >= 0 and d.vans[1].progress <= 1 and type(d.vans[1].name) == 'string', 'phone data: van rows')
+money = 0
+local r = beamazon_phoneApp.buyVan()
+check(r.ok == false and r.reason == 'notEnoughMoney' and #r.data.vans == 3, 'phone buy without money: reason, no van')
+money = 5000
+r = beamazon_phoneApp.buyVan()
+check(r.ok and #r.data.vans == 4 and money == 4000, 'phone buy adds a van and charges')
+active = false; extensions.hook('onOverhaulActive', false)
+check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')

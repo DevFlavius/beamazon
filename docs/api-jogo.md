@@ -109,5 +109,11 @@ RLS:
 
 - [x] Detecção segura: `extensions.isExtensionLoaded("overhaul_career_career")` (`lua/common/extensions.lua:280`, só checa o global). O RLS carrega as extensões dele 0,25 s depois do `modScript` (`RLS: scripts/rls_career_overhaul/modScript.lua`), então **detecte na hora de usar**, nunca uma vez só no load.
 - [x] App do celular: o RLS lê qualquer `gameplay/overhaul/phone/apps/<id>.json` de qualquer mod (comentário em `RLS: ui/ui-vue/mods/rls_career_overhaul/overhaul/modules/career/utils/phoneAppRegistry.js:12-13`). Campos mínimos: `id`, `name`, `route` e um ícone (`icon`/`iconImage`/`iconTile`). Modelo: `RLS: gameplay/overhaul/phone/apps/logistics.json`, que aponta para uma tela Vue em `uiRoutes[].component`. Os arquivos `gameplay/overhaul/{career,ui}/owners/overhaul_phone_apps_*.json` são do registro interno das extensões do RLS; ver na fase 3 se um addon precisa deles.
+- [x] App do Beamazon (fase 3): manifesto em `mod/gameplay/overhaul/phone/apps/beamazon.json` e tela em `mod/ui/ui-vue/mods/beamazon/PhoneBeamazon.vue`.
+  - O RLS valida o manifesto em `RLS: lua/ge/extensions/overhaul/lib/phone/appDiscovery.lua:43` (o `id` tem que ser igual ao nome do arquivo) e cada rota em `RLS: .../lib/ui/routeValidation.lua`. O componente tem que ficar em `/ui/ui-vue/mods/<mod>/...vue` (`RLS: .../lib/platform/catalog.lua:18`).
+  - A tela é um `.vue` comum, compilado pelo jogo em tempo de execução (regras oficiais em `ui/ui-vue/mods/README.md` na pasta do jogo). Ela importa só código do jogo (`vue`, `@/...`), nada do RLS.
+  - Chamada ao Lua: `runRaw("expressão Lua")` de `@/bridge/libs/Lua.js` (`ui/ui-vue/src/bridge/libs/Lua.js:149`) devolve o valor da expressão. O atalho `lua.extensions.x.f()` só serve para funções listadas em `LuaFunctionSignatures.js`, então não serve para o mod. Tabela Lua vazia chega no JS como `{}`, não `[]`.
+  - Ícone: `icon` é um nome dos ícones do jogo (`ui/ui-vue/src/assets/fonts/bngIcons/svg/`); o Beamazon usa `deliveryTruck`.
+  - Nenhum app vem pré-instalado (`PREINSTALLED_APP_IDS = []`, `RLS: .../career/utils/phoneLayoutUtils.js:8`): o jogador instala o Beamazon pela App Store do celular.
 - [x] Conta da empresa: livro-caixa com categoria `business` e `payment.pay(..., accountId)` (ver **Dinheiro**).
 - [ ] Garagens do Real Estate: assinaturas completas na fase 2.

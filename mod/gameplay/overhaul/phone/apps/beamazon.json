@@ -1,0 +1,24 @@
+{
+  "id": "beamazon",
+  "name": "Beamazon",
+  "icon": "deliveryTruck",
+  "route": "/overhaul/phone-beamazon",
+  "color": "#d97706",
+  "iconColor": "#ffffff",
+  "category": "Business",
+  "storeTagline": "Your autonomous delivery fleet.",
+  "storeDescription": "Buy self-driving electric vans and let them deliver parcels for you. Track every van and the fleet's profit.",
+  "unlock": {
+    "type": "careerActive"
+  },
+  "uiRoutes": [
+    {
+      "name": "phone-beamazon",
+      "path": "phone-beamazon",
+      "component": "/ui/ui-vue/mods/beamazon/PhoneBeamazon.vue",
+      "uiOrder": 900,
+      "luaOrder": 900,
+      "backTarget": "phone-main"
+    }
+  ]
+}

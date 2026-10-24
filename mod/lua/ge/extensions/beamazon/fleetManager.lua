@@ -89,15 +89,20 @@ local function getVans()
   return fleet and fleet.vans or {}
 end
 
+local function getTotals()
+  return fleet and fleet.totals or nil
+end
+
+-- True, or false and the reason: 'careerInactive' or 'notEnoughMoney'.
 local function buyVan()
   if not ensureLoaded() then
     log('W', logTag, 'buyVan: career is not active (RLS Career Overhaul is required)')
-    return false
+    return false, 'careerInactive'
   end
   local id = fleet.nextVanId
   if not beamazon_adapter.pay(balance.vanPrice, 'Beamazon: van ' .. id) then
     log('W', logTag, string.format('buyVan: not enough money for a van ($%s)', tostring(balance.vanPrice)))
-    return false
+    return false, 'notEnoughMoney'
   end
   fleet.nextVanId = id + 1
   table.insert(fleet.vans, {id = id, name = 'Van ' .. id, trips = 0, net = 0, tripElapsed = 0})
@@ -179,6 +184,7 @@ end
 
 M.ensureLoaded = ensureLoaded
 M.getVans = getVans
+M.getTotals = getTotals
 M.buyVan = buyVan
 M.takeOfflineSeconds = takeOfflineSeconds
 M.payOut = payOut
