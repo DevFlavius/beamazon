@@ -27,9 +27,10 @@ local function advanceVan(van, dt)
     driver = beamazon_company.getTruckDriver(van)
     if not driver then return false end
   end
+  local mods = beamazon_fleetManager.getVehicleEffects(van)
   for _ = 1, maxTripsPerAdvance do
     if not van.trip then
-      van.trip = beamazon_fleetEconomy.rollTrip(van.kind)
+      van.trip = beamazon_fleetEconomy.rollTrip(van.kind, mods)
       van.tripElapsed = 0
       if not van.trip then return true end
     end
@@ -38,7 +39,7 @@ local function advanceVan(van, dt)
 
     dt = van.tripElapsed - van.trip.durationS
     local wageShare = driver and beamazon_company.getDriverWageShare() or nil
-    beamazon_fleetManager.recordTrip(van, beamazon_fleetEconomy.settleTrip(van.trip, wageShare), driver)
+    beamazon_fleetManager.recordTrip(van, beamazon_fleetEconomy.settleTrip(van.trip, wageShare, mods), driver)
     van.trip = nil
     van.tripElapsed = 0
     if (van.brokenFor or 0) > 0 then

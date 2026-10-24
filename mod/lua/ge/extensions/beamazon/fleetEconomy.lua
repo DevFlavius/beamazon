@@ -42,13 +42,15 @@ local function roundCents(value)
 end
 
 -- A new trip for a 'van' (default) or a 'truck', or nil when RLS has no parcel types to draw from.
-local function rollTrip(kind)
+-- mods is the vehicle effects table (may be nil).
+local function rollTrip(kind, mods)
   local profile = profileOf(kind)
   local templates = beamazon_adapter.getParcelTemplates()
   if #templates == 0 then return nil end
 
+  local maxParcels = profile.maxParcels + (mods and mods.parcels or 0)
   local parcels, freeSlots, misses = {}, profile.capacitySlots, 0
-  while #parcels < profile.maxParcels and misses < 5 do
+  while #parcels < maxParcels and misses < 5 do
     local template = pickTemplate(templates)
     local slots = template.slots[math.random(#template.slots)]
     if slots <= freeSlots then
@@ -70,13 +72,14 @@ local function rollTrip(kind)
     routeKm = routeKm,
     drivenKm = drivenKm,
     parcels = parcels,
-    durationS = durationS * math.max(1 + effect('tripTime'), 0.5),
+    durationS = durationS * math.max(1 + effect('tripTime') + (mods and mods.tripTime or 0), 0.5),
   }
 end
 
 -- Revenue at today's RLS prices, minus the costs. All values in $.
 -- A truck trip also pays its driver a share of the revenue (wageShare, from the company).
-local function settleTrip(trip, wageShare)
+-- mods is the vehicle effects table (may be nil).
+local function settleTrip(trip, wageShare, mods)
   local profile = profileOf(trip.kind)
   local revenue, driverXp = 0, 0
   for _, parcel in ipairs(trip.parcels) do
@@ -84,9 +87,11 @@ local function settleTrip(trip, wageShare)
     revenue = revenue + (parcelMoney or 0) * balance.fleetPayMultiplier
     driverXp = driverXp + (parcelXp or 0)
   end
-  revenue = revenue * (1 + effect('revenue'))
+  local modRevenue = mods and mods.revenue or 0
+  revenue = revenue * (1 + effect('revenue') + modRevenue)
   local running = math.max(1 + effect('runningCosts'), 0)
-  local energy = trip.drivenKm * profile.energyKwhPerKm * balance.energyPricePerKwh * running
+  local modEnergy = mods and mods.energy or 0
+  local energy = trip.drivenKm * profile.energyKwhPerKm * balance.energyPricePerKwh * running * math.max(1 + modEnergy, 0)
   local wear = trip.drivenKm * profile.wearPerKm * running
   local commission = revenue * math.max(balance.commission + effect('commission'), 0)
   local wage = revenue * (wageShare or 0)

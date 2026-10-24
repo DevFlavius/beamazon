@@ -61,6 +61,18 @@ local function loadFleet()
       van.condition = math.max(balance.minCondition or 0, math.min(1, tonumber(van.condition) or 1))
       van.brokenFor = math.max(tonumber(van.brokenFor) or 0, 0)
       van.breakdowns = tonumber(van.breakdowns) or 0
+      if type(van.upgrades) ~= 'table' then
+        van.upgrades = {}
+      else
+        local cleanUpgrades = {}
+        for uid, lvl in pairs(van.upgrades) do
+          if type(uid) == 'string' and type(lvl) == 'number' then
+            cleanUpgrades[uid] = lvl
+          end
+        end
+        van.upgrades = cleanUpgrades
+      end
+      van.upgradeSpent = math.max(tonumber(van.upgradeSpent) or 0, 0)
       table.insert(loaded.vans, van)
       loaded.nextVanId = math.max(loaded.nextVanId, van.id + 1)
     end
@@ -330,6 +342,7 @@ local function buyVan()
     id = id, kind = 'van', name = 'Van ' .. id,
     trips = 0, net = 0, tripElapsed = 0, pricePaid = price,
     condition = 1, brokenFor = 0, breakdowns = 0,
+    upgrades = {}, upgradeSpent = 0,
   })
   recordPurchase(price)
   log('I', logTag, string.format('buyVan: Van %d bought for $%d (fleet: %d, next offer $%d)', id, price, #fleet.vans, getVanPrice()))
@@ -362,6 +375,7 @@ local function buyTruck()
     id = id, kind = 'truck', name = 'Truck ' .. id,
     trips = 0, net = 0, tripElapsed = 0, pricePaid = price,
     condition = 1, brokenFor = 0, breakdowns = 0,
+    upgrades = {}, upgradeSpent = 0,
   })
   recordPurchase(price)
   log('I', logTag, string.format('buyTruck: Truck %d bought for $%d (fleet: %d, next offer $%d)', id, price, #fleet.vans, getTruckPrice()))
@@ -374,13 +388,86 @@ local function findVan(id)
   end
 end
 
+local function findUpgradeDef(id)
+  for _, u in ipairs(balance.vehicleUpgrades or {}) do
+    if u.id == id then return u end
+  end
+  return nil
+end
+
+-- Cost in $ to buy the next level of an upgrade on this vehicle, or nil at max level / unknown id.
+local function getVehicleUpgradeCost(van, id)
+  if not van or type(id) ~= 'string' then return nil end
+  local def = findUpgradeDef(id)
+  if not def then return nil end
+  local level = (van.upgrades and van.upgrades[id]) or 0
+  if level >= def.maxLevel then return nil end
+  local cost = def.cost.base + def.cost.increment * level
+  if van.kind == 'truck' then
+    cost = cost * (balance.truckUpgradeCostMultiplier or 2)
+  end
+  return math.floor(cost)
+end
+
+-- Sums the effects of a vehicle's upgrades across all 4 keys (energy, tripTime, parcels, revenue; 0 when absent).
+local function getVehicleEffects(van)
+  local effects = {energy = 0, tripTime = 0, parcels = 0, revenue = 0}
+  if not van or type(van.upgrades) ~= 'table' then return effects end
+  for _, def in ipairs(balance.vehicleUpgrades or {}) do
+    local level = van.upgrades[def.id] or 0
+    if level > 0 and def.effect then
+      for key, val in pairs(def.effect) do
+        effects[key] = (effects[key] or 0) + val * level
+      end
+    end
+  end
+  return effects
+end
+
+-- True and the cost charged, or false and the reason: 'careerInactive', 'noVan', 'unknown', 'maxLevel' or 'notEnoughMoney'.
+local function upgradeVehicle(vanId, upgradeId)
+  if not ensureLoaded() then
+    log('W', logTag, 'upgradeVehicle: career is not active (RLS Career Overhaul is required)')
+    return false, 'careerInactive'
+  end
+  local van = findVan(vanId)
+  if not van then
+    log('W', logTag, 'upgradeVehicle: no vehicle with id ' .. tostring(vanId))
+    return false, 'noVan'
+  end
+  local def = findUpgradeDef(upgradeId)
+  if not def then
+    log('W', logTag, 'upgradeVehicle: unknown upgrade ' .. tostring(upgradeId))
+    return false, 'unknown'
+  end
+  local level = (van.upgrades and van.upgrades[upgradeId]) or 0
+  if level >= def.maxLevel then
+    return false, 'maxLevel'
+  end
+  local cost = getVehicleUpgradeCost(van, upgradeId)
+  local newLevel = level + 1
+  local label = 'Beamazon: ' .. van.name .. ' ' .. def.title .. ' ' .. newLevel
+  if not beamazon_adapter.pay(cost, label) then
+    log('W', logTag, string.format('upgradeVehicle: not enough money for %s %s %d ($%d)', van.name, def.title, newLevel, cost))
+    return false, 'notEnoughMoney'
+  end
+  van.upgrades = van.upgrades or {}
+  van.upgrades[upgradeId] = newLevel
+  van.upgradeSpent = (van.upgradeSpent or 0) + cost
+  recordPurchase(cost)
+  log('I', logTag, string.format('upgradeVehicle: %s upgraded to %s %d for $%d', van.name, def.title, newLevel, cost))
+  return true, cost
+end
+
 -- What a vehicle sells for now: its price minus the resale loss, times the live RLS vehicle market,
--- scaled by condition (0.5 at condition 0 up to 1.0 at condition 1).
+-- scaled by condition (0.5 at condition 0 up to 1.0 at condition 1), plus half of upgrade money spent.
 -- Vans bought before prices were stored count at the average price.
 local function getSellValue(van)
   local paid = tonumber(van.pricePaid) or (van.kind == 'truck' and balance.truckPrice or balance.vanPrice)
   local conditionFactor = 0.5 + 0.5 * (van.condition or 1)
-  return math.floor(paid * balance.vanResaleShare * beamazon_adapter.getVehicleBuyMultiplier() * conditionFactor + 0.5)
+  local baseValue = math.floor(paid * balance.vanResaleShare * beamazon_adapter.getVehicleBuyMultiplier() * conditionFactor + 0.5)
+  local upgradeValue = math.floor((van.upgradeSpent or 0) * (balance.upgradeResaleShare or 0.5))
+  return baseValue + upgradeValue
 end
 
 -- True and the money received, or false and the reason: 'careerInactive' or 'noVan'.
@@ -694,6 +781,9 @@ M.getServiceCost = serviceCost
 M.serviceCost = serviceCost
 M.serviceVan = serviceVan
 M.serviceAll = serviceAll
+M.getVehicleUpgradeCost = getVehicleUpgradeCost
+M.getVehicleEffects = getVehicleEffects
+M.upgradeVehicle = upgradeVehicle
 M.buyVan = buyVan
 M.getSellValue = getSellValue
 M.sellVan = sellVan
