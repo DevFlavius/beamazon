@@ -28,6 +28,41 @@
           <div><span>Trips</span><strong>{{ data.totals?.trips ?? 0 }}</strong></div>
           <div><span>Profit</span><strong>{{ money(data.totals?.net ?? 0) }}</strong></div>
         </div>
+
+        <!-- Contracts -->
+        <div v-if="data.contracts?.offer" class="card">
+          <div class="card-top">
+            <h2>Contract offer</h2>
+            <strong>{{ data.contracts.offer.client }}</strong>
+          </div>
+          <div class="card-status">
+            <span>{{ data.contracts.offer.trips }} trips in {{ data.contracts.offer.hours }} h</span>
+            <span>Expires in {{ data.contracts.offer.minutesLeft }} min</span>
+          </div>
+          <div class="hint">Bonus {{ money(data.contracts.offer.bonus) }} · penalty {{ money(data.contracts.offer.penalty) }}</div>
+          <div class="card-buttons">
+            <button class="small-button service" type="button" :disabled="busy" @click="act('acceptContract', 'Contract accepted.')">Accept</button>
+            <button class="small-button" type="button" :disabled="busy" @click="act('declineContract', 'Contract declined.')">Decline</button>
+          </div>
+        </div>
+
+        <div v-else-if="data.contracts?.active" class="card">
+          <div class="card-top">
+            <h2>Contract: {{ data.contracts.active.client }}</h2>
+            <strong>Bonus {{ money(data.contracts.active.bonus) }}</strong>
+          </div>
+          <div class="progress">
+            <div class="progress-fill" :style="{ width: Math.min(100, Math.round(((data.contracts.active.done || 0) / (data.contracts.active.trips || 1)) * 100)) + '%' }"></div>
+          </div>
+          <div class="card-status">
+            <span>{{ data.contracts.active.done || 0 }} / {{ data.contracts.active.trips }} trips</span>
+            <span>{{ data.contracts.active.minutesLeft }} min left</span>
+          </div>
+        </div>
+
+        <div v-else-if="vans.length > 0 && typeof data.contracts?.nextOfferMinutes === 'number'" class="hint contract-hint">
+          Next contract offer in about {{ data.contracts.nextOfferMinutes }} min.
+        </div>
         <button v-if="data.serviceAllCost > 0" class="service-all-button" type="button" :disabled="busy" @click="act('serviceAll', 'All vehicles serviced.')">
           Service all · {{ money(data.serviceAllCost) }}
         </button>
@@ -198,6 +233,7 @@
             <div class="row"><span>Driver wages</span><span>{{ money(historyTotals.wages) }}</span></div>
             <div class="row"><span>Repairs and service</span><span>{{ money(historyTotals.repairs) }}</span></div>
             <div class="row"><span>Purchases and sales</span><span>{{ money(historyTotals.purchases) }}</span></div>
+            <div class="row"><span>Contracts</span><span>{{ money(historyTotals.bonuses) }}</span></div>
             <div class="row"><strong>Net</strong><strong>{{ money(historyTotals.net) }}</strong></div>
           </div>
 
@@ -235,7 +271,7 @@ import { vBngUiNavScroll } from "@/common/directives"
 
 const refreshMs = 2000
 
-const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, logisticsLevel: 0, nextVanUnlock: null, company: null, totals: null, netPerVanHour: null, vans: [], serviceAllCost: 0, history: [], historyTotals: null })
+const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, logisticsLevel: 0, nextVanUnlock: null, company: null, contracts: null, totals: null, netPerVanHour: null, vans: [], serviceAllCost: 0, history: [], historyTotals: null })
 const loaded = ref(false)
 const busy = ref(false)
 const message = ref("")
@@ -283,6 +319,7 @@ const historyTotals = computed(() => data.historyTotals || {
   wages: 0,
   purchases: 0,
   repairs: 0,
+  bonuses: 0,
   net: 0,
 })
 
@@ -355,6 +392,7 @@ function apply(payload) {
   data.logisticsLevel = payload.logisticsLevel ?? 0
   data.nextVanUnlock = payload.nextVanUnlock ?? null
   data.company = payload.company ?? null
+  data.contracts = payload.contracts ?? null
   data.totals = payload.totals ?? null
   data.netPerVanHour = payload.netPerVanHour ?? null
   data.vans = payload.vans ?? []
@@ -384,6 +422,8 @@ const errors = {
   locked: "Buy the upgrades it needs first.",
   maxLevel: "Already at the top level.",
   noRoute: "Get in a vehicle to set the route.",
+  noOffer: "No contract on offer.",
+  alreadyActive: "Finish the current contract first.",
 }
 
 // Runs beamazon_phoneApp.<call> (a function name, or a call with its arguments) and shows the outcome.
@@ -547,6 +587,10 @@ onUnmounted(() => {
 
   &.locked {
     color: #ffb4a8;
+  }
+
+  &.contract-hint {
+    padding: 0 2px;
   }
 }
 
