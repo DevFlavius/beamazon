@@ -422,6 +422,50 @@ check(kinds.truck == 1 and kinds.van == vans0, 'trucks survive the save')
 local okSell, value = beamazon_fleetManager.sellVan(truck.id)
 check(okSell and value == math.floor(truckPrice * 0.85 + 0.5), 'a truck sells for 85% of its price: $' .. tostring(value))
 
+-- 9. fleet finance history
+local h = beamazon_fleetManager.getHistory()
+local bucketWithTrips
+for _, b in ipairs(h) do
+  if b.trips > 0 then bucketWithTrips = b; break end
+end
+check(bucketWithTrips ~= nil and bucketWithTrips.trips > 0, 'history has a bucket with trips')
+local calcNet = bucketWithTrips.revenue - bucketWithTrips.energy - bucketWithTrips.wear - bucketWithTrips.commission - bucketWithTrips.wages - bucketWithTrips.purchases
+check(math.abs(calcNet - bucketWithTrips.net) < 0.05, string.format('bucket net matches revenue - costs: %.2f vs %.2f', calcNet, bucketWithTrips.net))
+
+local currentB = h[#h]
+local purchasesBefore = currentB.purchases
+local vanPrice = beamazon_fleetManager.getVanPrice()
+money = vanPrice + 1000
+check(beamazon_fleetManager.buyVan() == true, 'buy a van for history test')
+check(currentB.purchases == purchasesBefore + vanPrice, 'buying a van adds its price to purchases')
+
+local historyBefore = deepcopy(beamazon_fleetManager.getHistory())
+save('/saves/prof/autosave1')
+active = false; extensions.hook('onOverhaulActive', false)
+active = true; extensions.hook('onOverhaulActive', true, false)
+local historyAfter = beamazon_fleetManager.getHistory()
+check(#historyAfter == #historyBefore, 'history count survives save/reload')
+check(historyAfter[#historyAfter].purchases == historyBefore[#historyBefore].purchases, 'history purchases survive save/reload')
+check(historyAfter[#historyAfter].net == historyBefore[#historyBefore].net, 'history net survives save/reload')
+
+local origTime = os.time
+local simHour = 5000000
+os.time = function() return simHour end
+for _ = 1, balance.historyHours + 10 do
+  simHour = simHour + 3600
+  beamazon_fleetManager.recordPurchase(10)
+end
+check(#beamazon_fleetManager.getHistory() == balance.historyHours, string.format('bucket list never exceeds %d: got %d', balance.historyHours, #beamazon_fleetManager.getHistory()))
+os.time = origTime
+
+local pd = beamazon_phoneApp.getData()
+check(type(pd.history) == 'table' and #pd.history == balance.historyHours, 'phone getData().history exists')
+check(type(pd.historyTotals) == 'table' and type(pd.historyTotals.trips) == 'number' and type(pd.historyTotals.revenue) == 'number'
+  and type(pd.historyTotals.purchases) == 'number' and type(pd.historyTotals.net) == 'number', 'phone getData().historyTotals exists')
+local sumPurchases = 0
+for _, b in ipairs(pd.history) do sumPurchases = sumPurchases + b.purchases end
+check(pd.historyTotals.purchases == sumPurchases, 'historyTotals.purchases matches sum of buckets')
+
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')
