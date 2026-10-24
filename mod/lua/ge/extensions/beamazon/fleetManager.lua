@@ -29,6 +29,7 @@ local function newFleet()
     vans = {},
     -- vanSeconds and timedNet feed the per-van-hour rate; saves from before them start both at 0.
     totals = {trips = 0, revenue = 0, costs = 0, net = 0, vanSeconds = 0, timedNet = 0},
+    company = {hq = false},
   }
 end
 
@@ -63,6 +64,9 @@ local function loadFleet()
   end
   loaded.savedAt = tonumber(data.savedAt)
   loaded.vanOffer = tonumber(data.vanOffer)
+  if type(data.company) == 'table' and data.company.hq == true then
+    loaded.company = {hq = true, foundedAt = tonumber(data.company.foundedAt)}
+  end
   return loaded
 end
 
@@ -123,12 +127,18 @@ local function addWorkTime(dt)
   fleet.totals.vanSeconds = fleet.totals.vanSeconds + dt * #fleet.vans
 end
 
--- How many vans the player may own. Without a company the Logistics level unlocks them (balance.personalVanUnlocks).
+local function ownsHq()
+  return fleet ~= nil and fleet.company.hq == true
+end
+
+-- How many vans the player may own. Without a company the Logistics level unlocks them (balance.personalVanUnlocks);
+-- the HQ's slots replace that limit, never lowering it.
 local function getVanLimit()
   local level, limit = beamazon_adapter.getLogisticsLevel(), 0
   for _, unlock in ipairs(balance.personalVanUnlocks) do
     if level >= unlock.level then limit = math.max(limit, unlock.vans) end
   end
+  if ownsHq() then limit = math.max(limit, balance.hqSlots) end
   return limit
 end
 
@@ -201,6 +211,27 @@ local function sellVan(id)
   return true, value
 end
 
+-- True, or false and the reason: 'careerInactive', 'alreadyOwned', 'logisticsLevel' or 'notEnoughMoney'.
+local function buyHq()
+  if not ensureLoaded() then
+    log('W', logTag, 'buyHq: career is not active (RLS Career Overhaul is required)')
+    return false, 'careerInactive'
+  end
+  if ownsHq() then return false, 'alreadyOwned' end
+  local level = beamazon_adapter.getLogisticsLevel()
+  if level < balance.hqUnlockLevel then
+    log('W', logTag, string.format('buyHq: needs Logistics level %d (player: %d)', balance.hqUnlockLevel, level))
+    return false, 'logisticsLevel'
+  end
+  if not beamazon_adapter.pay(balance.hqPrice, 'Beamazon: company HQ') then
+    log('W', logTag, string.format('buyHq: not enough money ($%d)', balance.hqPrice))
+    return false, 'notEnoughMoney'
+  end
+  fleet.company = {hq = true, foundedAt = os.time()}
+  log('I', logTag, string.format('buyHq: company founded for $%d (van limit: %d)', balance.hqPrice, getVanLimit()))
+  return true
+end
+
 local function takeOfflineSeconds()
   local seconds = offlineSeconds
   offlineSeconds = 0
@@ -248,6 +279,8 @@ local function status()
   local totals = fleet.totals
   log('I', logTag, string.format('fleet: %d/%d van(s) at Logistics level %d, next van $%d, %d trip(s), revenue $%.2f, costs $%.2f, net $%.2f',
     #fleet.vans, getVanLimit(), beamazon_adapter.getLogisticsLevel(), getVanPrice(), totals.trips, totals.revenue, totals.costs, totals.net))
+  log('I', logTag, ownsHq() and string.format('  company HQ owned (%d slots)', balance.hqSlots)
+    or string.format('  no company: HQ at Logistics level %d, $%d', balance.hqUnlockLevel, balance.hqPrice))
   local perHour = getNetPerVanHour()
   log('I', logTag, perHour and string.format('  net $%.2f per van-hour over %.1f van-hours', perHour, totals.vanSeconds / 3600)
     or '  net per van-hour: needs 1 van-hour of work')
@@ -284,6 +317,8 @@ M.getVans = getVans
 M.getTotals = getTotals
 M.getNetPerVanHour = getNetPerVanHour
 M.getVanLimit = getVanLimit
+M.ownsHq = ownsHq
+M.buyHq = buyHq
 M.getNextVanUnlock = getNextVanUnlock
 M.getVanPrice = getVanPrice
 M.addWorkTime = addWorkTime

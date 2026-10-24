@@ -73,6 +73,7 @@ O MVP (1 van abstrata, compra por console, simulação por timer, pagamento real
 - `beamazon_fleetManager.buyVan()`: compra uma van.
 - `beamazon_fleetManager.sellVan(id)`: vende a van com esse id (o `status()` mostra os ids).
 - `beamazon_fleetManager.status()`: mostra a frota no log, com o lucro por van-hora depois de 1 van-hora de trabalho.
+- `beamazon_fleetManager.buyHq()`: compra a sede da empresa (nível 20 de Logística e $80.000). No jogo, a sede é um ponto no mapa (`hq.lua`) com o cartão de compra.
 - `beamazon_fleetSim.setSpeed(60)`: acelera a frota para teste (1 s de jogo = 1 min de frota; não é salvo).
 
 Fase 2, peças que não dependem de balanceamento (2026-10-24, testadas só no RLS simulado):

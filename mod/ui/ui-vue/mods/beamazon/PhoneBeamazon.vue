@@ -20,6 +20,8 @@
         <div><span>Trips</span><strong>{{ data.totals?.trips ?? 0 }}</strong></div>
         <div><span>Profit</span><strong>{{ money(data.totals?.net ?? 0) }}</strong></div>
       </div>
+      <div v-if="data.company?.hq" class="rate">Company HQ · {{ data.company.hqSlots }} fleet slots</div>
+      <div v-else-if="data.company" class="rate">Logistics level {{ data.company.hqUnlockLevel }} lets you buy the company HQ ({{ money(data.company.hqPrice) }})</div>
       <div v-if="typeof data.netPerVanHour === 'number'" class="rate">{{ money(data.netPerVanHour) }} profit per van-hour</div>
 
       <button class="buy-button" type="button" :disabled="buying || atLimit" @click="buyVan">
@@ -64,7 +66,7 @@ import { vBngUiNavScroll } from "@/common/directives"
 
 const refreshMs = 2000
 
-const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, logisticsLevel: 0, nextVanUnlock: null, totals: null, netPerVanHour: null, vans: [] })
+const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, logisticsLevel: 0, nextVanUnlock: null, company: null, totals: null, netPerVanHour: null, vans: [] })
 const loaded = ref(false)
 const buying = ref(false)
 const message = ref("")
@@ -92,6 +94,7 @@ function apply(payload) {
   data.vanLimit = payload.vanLimit ?? 0
   data.logisticsLevel = payload.logisticsLevel ?? 0
   data.nextVanUnlock = payload.nextVanUnlock ?? null
+  data.company = payload.company ?? null
   data.totals = payload.totals ?? null
   data.netPerVanHour = payload.netPerVanHour ?? null
   data.vans = payload.vans ?? []

@@ -41,6 +41,16 @@ Salve, feche o jogo e volte depois de mais de 2 horas (pode ser no dia seguinte)
 
 - **Esperado:** o log mostra `fleet loaded: N van(s), 2.0 h away` (nunca mais que 2.0) e um lançamento `offline deliveries` de ~$10.000 por van.
 
+### 13. Sede da empresa
+
+Ctrl+L. Abra o mapa grande: há um ícone de laptop "Beamazon HQ" no ponto de Logística do West Coast (perto de onde o RLS dá as entregas). Vá a pé até lá.
+
+- **Esperado:** o cartão "Beamazon HQ" mostra preço $80,000, "Logistics level: 20 required (yours: N)" e "Fleet slots: 5". Abaixo do nível 20, o botão fica bloqueado com "Reach Logistics level 20 first".
+- Para testar a compra sem chegar ao nível 20, no console: `require('beamazon/balance').hqUnlockLevel = 0` (vale só até o próximo Ctrl+L). Com menos de $80.000, o botão diz "Not enough money".
+- Compre: o saldo cai $80.000, aparece o aviso "Company founded", e o `status()` mostra a empresa e o limite de vans igual a 5 (ou ao seu limite pessoal, se for maior).
+- Volte ao cartão: agora ele mostra a sede e o botão "Open the phone", que abre o celular. O app mostra "Company HQ · 5 fleet slots".
+- Salve e recarregue: a empresa continua comprada. No log, nenhuma linha `E` do Beamazon.
+
 ## Não crítico (acumula)
 
 (vazio)

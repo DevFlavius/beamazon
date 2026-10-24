@@ -9,7 +9,13 @@ return {
     {level = 10, vans = 2},
     {level = 15, vans = 3},
   },
-  vanResaleShare = 0.85,          -- a sold van returns this share of its price, times the RLS vehicle market (decided 2026-10-24)
+  vanResaleShare = 0.85,
+
+  -- The company HQ (decided 2026-10-24): bought on the map at Logistics level 20; its slots hold vans or trucks.
+  hqPrice = 80000,
+  hqUnlockLevel = 20,
+  hqSlots = 5,                    -- example from Bernardo, still provisional
+          -- a sold van returns this share of its price, times the RLS vehicle market (decided 2026-10-24)
 
   -- A trip: the van loads parcels at the depot, drives the route, delivers and comes back.
   vanCapacitySlots = 24,          -- cargo slots per trip

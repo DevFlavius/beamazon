@@ -243,6 +243,67 @@ save('/saves/prof/autosave1')
 active = false; extensions.hook('onOverhaulActive', false)
 active = true; extensions.hook('onOverhaulActive', true, false)
 check(fm.getVans()[2].pricePaid == kept.pricePaid and fm.getSellValue(fm.getVans()[2]) == fm.getSellValue(kept), 'price paid survives the save')
+
+-- 7. company HQ
+local V = {}
+V.__index = V
+V.__add = function(a, b) return setmetatable({x = a.x + b.x, y = a.y + b.y, z = a.z + b.z}, V) end
+function vec3(x, y, z) return setmetatable({x = x, y = y, z = z}, V) end
+local objects = {}
+local function sceneObject(class)
+  local o = {class = class}
+  function o:setPosition(p) self.pos = p end
+  function o:setScale(v) self.scale = v end
+  function o:registerObject(name) self.name = name; objects[name] = self end
+  return o
+end
+function createObject(class) return sceneObject(class) end
+scenetree = {findObject = function(name) return objects[name] end, MissionGroup = {addObject = function() end}}
+local toasts = {}
+guihooks = {trigger = function(name, data) if name == 'toastrMsg' then table.insert(toasts, data) end end}
+local phoneOpened = false
+overhaul_shell_gameMode = {openPhone = function() phoneOpened = true return true end}
+local hq = beamazon_hq
+local elements = {}
+hq.onGetRawPoiListForLevel('west_coast_usa', elements)
+check(#elements == 0, 'HQ: no marker on a level without a spot')
+hq.onGetRawPoiListForLevel('rls_west_coast', elements)
+local elem = elements[1]
+check(elem and elem.data.type == 'beamazonHq' and objects.beamazonHqWestCoast_area.class == 'BeamNGGameplayArea'
+  and objects.beamazonHqWestCoast_icon.class == 'BeamNGPointOfInterest' and elem.markerInfo.walkingMarker.doors[1][2] == 'beamazonHqWestCoast_icon',
+  'HQ: marker and its area and icon objects on rls_west_coast')
+check(math.abs(objects.beamazonHqWestCoast_icon.pos.z - (122.440 + 1.2)) < 0.001, 'HQ: icon above the spot')
+local again = {}
+hq.onGetRawPoiListForLevel('rls_west_coast', again)
+check(#again == 1, 'HQ: a second POI build reuses the objects')
+local function card() local list = {} hq.onActivityAcceptGatherData({elem.data}, list) return list[1] end
+logisticsLevel = 19; money = 1e6
+local c = card()
+check(c.disabled and c.disableReason:find('20') and c.props[1].valueLabel == '$80,000', 'HQ card: price, locked below Logistics level 20')
+logisticsLevel = 20; money = 1000
+check(card().disableReason == 'Not enough money', 'HQ card: locked without money')
+local limitBefore = beamazon_fleetManager.getVanLimit()
+money = 100000
+c = card()
+check(not c.disabled and c.buttonLabel == 'Buy the company', 'HQ card: open at level 20 with money')
+c.buttonFun()
+check(beamazon_fleetManager.ownsHq() and money == 20000 and toasts[#toasts].type == 'success', 'HQ bought: $80,000 charged')
+check(ledger[#ledger][2] == 'Beamazon: company HQ' and ledger[#ledger][3] == 'business', 'HQ purchase is a business ledger entry')
+check(beamazon_fleetManager.getVanLimit() == math.max(limitBefore, 5), 'HQ: van limit is the HQ slots (' .. beamazon_fleetManager.getVanLimit() .. ')')
+local ok, why = beamazon_fleetManager.buyHq()
+check(ok == false and why == 'alreadyOwned' and money == 20000, 'HQ: a second purchase is refused')
+c = card()
+check(c.buttonLabel == 'Open the phone' and not c.disabled, 'HQ card once owned')
+c.buttonFun()
+check(phoneOpened, 'HQ card opens the phone')
+check(beamazon_phoneApp.getData().company.hq == true, 'phone shows the company')
+save('/saves/prof/autosave1')
+active = false; extensions.hook('onOverhaulActive', false)
+check(beamazon_fleetManager.ownsHq() == false, 'career off: no company')
+active = true; extensions.hook('onOverhaulActive', true, false)
+check(beamazon_fleetManager.ownsHq() and disk['/saves/prof/autosave1/career/beamazon.json'].company.hq == true, 'HQ survives the save')
+logisticsLevel = 15
+
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')

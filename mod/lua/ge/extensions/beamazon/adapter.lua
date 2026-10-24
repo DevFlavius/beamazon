@@ -112,6 +112,14 @@ local function getVehicleBuyMultiplier()
   return multiplier
 end
 
+-- Phone ------------------------------------------------------------------------------------------
+
+-- Opens the RLS phone on its home screen.
+local function openPhone()
+  if not isCareerActive() or not overhaul_shell_gameMode then return false end
+  return overhaul_shell_gameMode.openPhone() and true or false
+end
+
 -- Deliveries -------------------------------------------------------------------------------------
 
 -- RLS parcel types as plain data: {id, slots = {...}, weights = {...}, chance}.
@@ -188,6 +196,7 @@ M.creditTest = creditTest
 M.getLogisticsLevel = getLogisticsLevel
 M.getVehiclePriceRange = getVehiclePriceRange
 M.getVehicleBuyMultiplier = getVehicleBuyMultiplier
+M.openPhone = openPhone
 M.getParcelTemplates = getParcelTemplates
 M.getParcelReward = getParcelReward
 M.readSaveFile = readSaveFile
