@@ -48,6 +48,17 @@ No save com pelo menos 1 van na frota.
 
 - **Esperado:** os custos de reparo da quebra e de revisão aparecem como lançamentos no extrato bancário do RLS. A van quebrada fica parada sem realizar viagens até o reparo terminar. A condição e o tempo restante de reparo são preservados no save/recarregamento. Nenhuma linha `E` no log.
 
+### 20. Filial das Dockyards
+
+No save com a sede já fundada.
+
+1. Para liberar a compra no teste: o nível 3 de empresa precisa de 1.500 XP de empresa. Conceda pelo console com `beamazon_fleetManager.getCompany().xpEarned = 1500`.
+2. Como chegar ao local: entre em um veículo e toque no botão "Route" da filial Beamazon Dockyards na aba Empresa do celular, ou selecione o ponto no mapa grande (Spearleaf Logistics, armazéns do porto).
+3. Caminhe até o ponto no local e compre a filial no cartão de atividade por $60.000.
+4. Salve, recarregue (Ctrl+L) e confira com `beamazon_fleetManager.status()`.
+
+- **Esperado:** $60.000 cobrados como lançamento no extrato bancário do RLS (`Beamazon: Beamazon Dockyards`), limite da frota sobe +4 vagas, e a filial comprada continua lá após o save e recarregamento. No local aparecem a mesa de escritório e o notebook ligado. Flavio: por favor avalie se a posição ficou ruim em jogo (atravessando parede, bloqueando a rua, etc.). Nenhuma linha `E` no log.
+
 ## Não crítico (acumula)
 
 ### 15. Celular: abas Frota / Empresa / Melhorias
