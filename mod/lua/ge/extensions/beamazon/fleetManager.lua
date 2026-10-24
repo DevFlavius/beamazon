@@ -32,7 +32,7 @@ local function newFleet()
     -- vanSeconds and timedNet feed the per-van-hour rate; saves from before them start both at 0.
     -- truckSeconds and truckNet are the same for trucks with a driver (kept apart so the van rate stays comparable).
     totals = {trips = 0, revenue = 0, costs = 0, net = 0, vanSeconds = 0, timedNet = 0, truckSeconds = 0, truckNet = 0},
-    company = {hq = false},
+    company = {hq = false, branches = {}},
     history = {},
   }
 end
@@ -77,6 +77,9 @@ local function loadFleet()
   if type(data.company) == 'table' and data.company.hq == true then
     loaded.company = data.company
     loaded.company.foundedAt = tonumber(data.company.foundedAt)
+    if type(loaded.company.branches) ~= 'table' then
+      loaded.company.branches = {}
+    end
   end
   if type(data.history) == 'table' then
     local history = {}
@@ -191,15 +194,48 @@ local function ownsHq()
   return fleet ~= nil and fleet.company.hq == true
 end
 
+-- True when the company owns the branch with this id.
+local function ownsBranch(id)
+  return fleet ~= nil and type(fleet.company) == 'table' and type(fleet.company.branches) == 'table' and fleet.company.branches[id] == true
+end
+
+-- List of branches in balance.branchOrder: {id, name, price, slots, companyLevel, owned}
+local function getBranches()
+  local list = {}
+  for _, id in ipairs(balance.branchOrder or {}) do
+    local b = balance.branches and balance.branches[id]
+    if b then
+      table.insert(list, {
+        id = id,
+        name = b.name,
+        price = b.price,
+        slots = b.slots,
+        companyLevel = b.companyLevel,
+        owned = ownsBranch(id),
+      })
+    end
+  end
+  return list
+end
+
 -- How many vehicles (vans and trucks) the player may own: the personal vans the Logistics level unlocks
--- (balance.personalVanUnlocks), plus the HQ slots and the Parking Bays upgrades.
+-- (balance.personalVanUnlocks), plus the HQ slots, the Parking Bays upgrades and owned branches.
 local function getVanLimit()
   local level, limit = beamazon_adapter.getLogisticsLevel(), 0
   for _, unlock in ipairs(balance.personalVanUnlocks) do
     if level >= unlock.level then limit = math.max(limit, unlock.vans) end
   end
   -- The HQ adds its slots on top of the personal vans (Flavio, 2026-10-24: 3 + 5 = 8).
-  if ownsHq() then limit = limit + balance.hqSlots + beamazon_company.getEffect('slots') end
+  if ownsHq() then
+    limit = limit + balance.hqSlots + beamazon_company.getEffect('slots')
+    if balance.branches and type(fleet.company.branches) == 'table' then
+      for id, owned in pairs(fleet.company.branches) do
+        if owned and balance.branches[id] and balance.branches[id].slots then
+          limit = limit + balance.branches[id].slots
+        end
+      end
+    end
+  end
   return limit
 end
 
@@ -383,9 +419,43 @@ local function buyHq()
     log('W', logTag, string.format('buyHq: not enough money ($%d)', balance.hqPrice))
     return false, 'notEnoughMoney'
   end
-  fleet.company = {hq = true, foundedAt = os.time(), xp = 0, xpEarned = 0, upgrades = {}, drivers = {}, nextDriverId = 1}
+  fleet.company = {hq = true, foundedAt = os.time(), xp = 0, xpEarned = 0, upgrades = {}, drivers = {}, nextDriverId = 1, branches = {}}
   recordPurchase(balance.hqPrice)
   log('I', logTag, string.format('buyHq: company founded for $%d (van limit: %d)', balance.hqPrice, getVanLimit()))
+  return true
+end
+
+-- True, or false and the reason: 'careerInactive', 'unknown', 'noCompany', 'alreadyOwned', 'companyLevel' or 'notEnoughMoney'.
+local function buyBranch(id)
+  if not ensureLoaded() then
+    log('W', logTag, 'buyBranch: career is not active (RLS Career Overhaul is required)')
+    return false, 'careerInactive'
+  end
+  local branchConfig = balance.branches and balance.branches[id]
+  if not branchConfig then
+    log('W', logTag, 'buyBranch: unknown branch ' .. tostring(id))
+    return false, 'unknown'
+  end
+  if not ownsHq() then
+    log('W', logTag, 'buyBranch: branches need the company HQ')
+    return false, 'noCompany'
+  end
+  if ownsBranch(id) then
+    return false, 'alreadyOwned'
+  end
+  local currentLevel = beamazon_company and beamazon_company.getLevel().level or 1
+  if currentLevel < branchConfig.companyLevel then
+    log('W', logTag, string.format('buyBranch: needs company level %d (company: %d)', branchConfig.companyLevel, currentLevel))
+    return false, 'companyLevel'
+  end
+  if not beamazon_adapter.pay(branchConfig.price, 'Beamazon: ' .. branchConfig.name) then
+    log('W', logTag, string.format('buyBranch: not enough money for %s ($%d)', branchConfig.name, branchConfig.price))
+    return false, 'notEnoughMoney'
+  end
+  fleet.company.branches = fleet.company.branches or {}
+  fleet.company.branches[id] = true
+  recordPurchase(branchConfig.price)
+  log('I', logTag, string.format('buyBranch: %s bought for $%d (+%d slots, van limit: %d)', branchConfig.name, branchConfig.price, branchConfig.slots, getVanLimit()))
   return true
 end
 
@@ -544,6 +614,16 @@ local function status()
     local level = beamazon_company.getLevel()
     log('I', logTag, string.format('  company level %d (%.0f XP earned, %.0f to spend), %d/%d driver(s), next truck $%d',
       level.level, level.xpEarned, fleet.company.xp or 0, #beamazon_company.getDrivers(), beamazon_company.getDriverSlots(), getTruckPrice()))
+    if balance.branchOrder then
+      for _, id in ipairs(balance.branchOrder) do
+        if ownsBranch(id) then
+          local b = balance.branches and balance.branches[id]
+          if b then
+            log('I', logTag, string.format('  branch: %s (+%d slots)', b.name, b.slots))
+          end
+        end
+      end
+    end
   else
     log('I', logTag, string.format('  no company: HQ at Logistics level %d, $%d', balance.hqUnlockLevel, balance.hqPrice))
   end
@@ -604,6 +684,9 @@ M.getNetPerVanHour = getNetPerVanHour
 M.getVanLimit = getVanLimit
 M.ownsHq = ownsHq
 M.buyHq = buyHq
+M.ownsBranch = ownsBranch
+M.getBranches = getBranches
+M.buyBranch = buyBranch
 M.getNextVanUnlock = getNextVanUnlock
 M.getVanPrice = getVanPrice
 M.addWorkTime = addWorkTime
