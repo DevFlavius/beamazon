@@ -138,7 +138,8 @@ local function getVanLimit()
   for _, unlock in ipairs(balance.personalVanUnlocks) do
     if level >= unlock.level then limit = math.max(limit, unlock.vans) end
   end
-  if ownsHq() then limit = math.max(limit, balance.hqSlots) end
+  -- The HQ adds its slots on top of the personal vans (Flavio, 2026-10-24: 3 + 5 = 8).
+  if ownsHq() then limit = limit + balance.hqSlots end
   return limit
 end
 

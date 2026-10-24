@@ -20,7 +20,7 @@
         <div><span>Trips</span><strong>{{ data.totals?.trips ?? 0 }}</strong></div>
         <div><span>Profit</span><strong>{{ money(data.totals?.net ?? 0) }}</strong></div>
       </div>
-      <div v-if="data.company?.hq" class="rate">Company HQ · {{ data.company.hqSlots }} fleet slots</div>
+      <div v-if="data.company?.hq" class="rate">Company HQ · +{{ data.company.hqSlots }} fleet slots</div>
       <div v-else-if="data.company" class="rate">Logistics level {{ data.company.hqUnlockLevel }} lets you buy the company HQ ({{ money(data.company.hqPrice) }})</div>
       <button v-if="data.company?.hqOnThisMap" class="route-button" type="button" @click="routeToHq">Route to the Beamazon HQ</button>
       <div v-if="typeof data.netPerVanHour === 'number'" class="rate">{{ money(data.netPerVanHour) }} profit per van-hour</div>

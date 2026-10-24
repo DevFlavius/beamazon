@@ -109,7 +109,7 @@ local function buildCard(elem)
   card.buttonFun = function()
     local ok = beamazon_fleetManager.buyHq()
     guihooks.trigger('toastrMsg', ok
-      and {type = 'success', title = 'Beamazon', msg = 'Company founded. Your fleet now has ' .. balance.hqSlots .. ' slots.'}
+      and {type = 'success', title = 'Beamazon', msg = 'Company founded: +' .. balance.hqSlots .. ' fleet slots.'}
       or {type = 'warning', title = 'Beamazon', msg = 'Could not buy the company.'})
   end
   return card

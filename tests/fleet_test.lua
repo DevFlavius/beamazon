@@ -291,7 +291,7 @@ check(not c.disabled and c.buttonLabel == 'Buy the company', 'HQ card: open at l
 c.buttonFun()
 check(beamazon_fleetManager.ownsHq() and money == 20000 and toasts[#toasts].type == 'success', 'HQ bought: $80,000 charged')
 check(ledger[#ledger][2] == 'Beamazon: company HQ' and ledger[#ledger][3] == 'business', 'HQ purchase is a business ledger entry')
-check(beamazon_fleetManager.getVanLimit() == math.max(limitBefore, 5), 'HQ: van limit is the HQ slots (' .. beamazon_fleetManager.getVanLimit() .. ')')
+check(beamazon_fleetManager.getVanLimit() == limitBefore + 5, 'HQ: the HQ adds 5 slots to the personal vans (' .. beamazon_fleetManager.getVanLimit() .. ')')
 local ok, why = beamazon_fleetManager.buyHq()
 check(ok == false and why == 'alreadyOwned' and money == 20000, 'HQ: a second purchase is refused')
 c = card()
