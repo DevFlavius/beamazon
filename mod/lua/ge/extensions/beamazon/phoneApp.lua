@@ -117,6 +117,7 @@ local function getData()
     wages = 0,
     purchases = 0,
     repairs = 0,
+    bonuses = 0,
     net = 0,
   }
   for _, bucket in ipairs(history) do
@@ -128,6 +129,7 @@ local function getData()
     historyTotals.wages = historyTotals.wages + (bucket.wages or 0)
     historyTotals.purchases = historyTotals.purchases + (bucket.purchases or 0)
     historyTotals.repairs = historyTotals.repairs + (bucket.repairs or 0)
+    historyTotals.bonuses = historyTotals.bonuses + (bucket.bonuses or 0)
     historyTotals.net = historyTotals.net + (bucket.net or 0)
   end
   return {
@@ -137,6 +139,7 @@ local function getData()
     logisticsLevel = beamazon_adapter.getLogisticsLevel(),
     nextVanUnlock = beamazon_fleetManager.getNextVanUnlock(),
     company = companyData(),
+    contracts = beamazon_contracts and beamazon_contracts.getView() or nil,
     totals = beamazon_fleetManager.getTotals(),
     netPerVanHour = beamazon_fleetManager.getNetPerVanHour(),
     vans = vans,
@@ -192,6 +195,14 @@ local function upgradeVehicle(vanId, upgradeId)
   local ok, reason = beamazon_fleetManager.upgradeVehicle(vanId, upgradeId)
   return result(ok, reason)
 end
+local function acceptContract()
+  if not beamazon_contracts then return result(false, 'careerInactive') end
+  return result(beamazon_contracts.accept())
+end
+local function declineContract()
+  if not beamazon_contracts then return result(false, 'careerInactive') end
+  return result(beamazon_contracts.decline())
+end
 
 M.getData = getData
 M.buyTruck = buyTruck
@@ -201,6 +212,8 @@ M.fireDriver = fireDriver
 M.serviceVan = serviceVan
 M.serviceAll = serviceAll
 M.upgradeVehicle = upgradeVehicle
+M.acceptContract = acceptContract
+M.declineContract = declineContract
 M.routeToHq = routeToHq
 M.routeToSite = routeToSite
 M.sellVan = sellVan
