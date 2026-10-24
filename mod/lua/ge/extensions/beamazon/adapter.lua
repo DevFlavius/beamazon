@@ -86,7 +86,9 @@ local logisticsSkillPathId = 'careerSkills-logistics'
 -- The player's Logistics skill level; 0 without an active career.
 local function getLogisticsLevel()
   if not isCareerActive() or not overhaul_career_progression_skills then return 0 end
-  return tonumber(overhaul_career_progression_skills.getBranchLevel(logisticsSkillPathId)) or 0
+  -- getBranchLevel returns level, progress, XP needed and thresholds; keep only the level.
+  local level = overhaul_career_progression_skills.getBranchLevel(logisticsSkillPathId)
+  return tonumber(level) or 0
 end
 
 -- Vehicle market ---------------------------------------------------------------------------------
@@ -104,7 +106,8 @@ end
 -- The live vehicle market index RLS applies to every vehicle purchase (1 = normal market).
 local function getVehicleBuyMultiplier()
   local calculator = isCareerActive() and overhaul_career_market_valueCalculator
-  local multiplier = calculator and calculator.getVehicleBuyMarketMultiplier and tonumber(calculator.getVehicleBuyMarketMultiplier())
+  local multiplier = calculator and calculator.getVehicleBuyMarketMultiplier and calculator.getVehicleBuyMarketMultiplier()
+  multiplier = tonumber(multiplier)
   if not multiplier or multiplier <= 0 or multiplier ~= multiplier then return 1 end
   return multiplier
 end

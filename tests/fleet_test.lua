@@ -41,7 +41,8 @@ local function installRls()
     if price.money.amount > money then return false end
     overhaul_career_economy_playerAttributes.addAttributes({money = -price.money.amount}, r); return true end}
   overhaul_career_progression_skills = {getBranchLevel = function(id)
-    if id ~= 'careerSkills-logistics' then return nil end return logisticsLevel end}
+    -- Like RLS: level, progress, XP needed for next, previous and next thresholds.
+    if id ~= 'careerSkills-logistics' then return nil end return logisticsLevel, 0.5, 100, 1400, 2000 end}
   overhaul_career_market_valueCalculator = {
     getVehicleListingPriceRange = function() return {tailLow = 0.70, normalLow = 0.88, normalHigh = 1.12, tailHigh = 1.30} end,
     getVehicleBuyMarketMultiplier = function() return marketIndex end,
