@@ -78,4 +78,16 @@ return {
     maxLevel = 4, cost = {base = 25000, increment = 25000}, xpCost = {base = 0, increment = 0},
     effect = {xpGain = 0.25}, dependencies = {{id = 'serviceContract', level = 1}},
   },
+  {
+    id = 'manager', title = 'Fleet Manager', group = 'People',
+    description = 'Services any vehicle below 40% by itself. Paid a wage per fleet hour.',
+    maxLevel = 1, cost = {base = 40000, increment = 0}, xpCost = {base = 300, increment = 0},
+    effect = {autoService = 1}, dependencies = {{id = 'drivers', level = 1}},
+  },
+  {
+    id = 'salesTeam', title = 'Sales Team', group = 'Operations',
+    description = 'Accepts contract offers by itself; contracts pay 10% more per level.',
+    maxLevel = 3, cost = {base = 25000, increment = 25000}, xpCost = {base = 200, increment = 150},
+    effect = {autoContracts = 1, contractBonus = 0.10},
+  },
 }

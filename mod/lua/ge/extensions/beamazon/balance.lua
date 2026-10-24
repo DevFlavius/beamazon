@@ -100,4 +100,8 @@ return {
   contractPenaltyShare = 0.2,      -- share of the bonus charged when a contract is missed
   contractXpPerDollar = 0.02,      -- company XP for a completed contract, per bonus dollar
   contractClients = {'Spearleaf Logistics', 'Belasco Pharmacy', 'Firwood Market', 'Jefferson Motors Parts', 'Hirochi Electronics', 'Gavril Hardware'},
+
+  -- PROVISIONAL (agent, 2026-10-24 night): automation, waiting for Flavio and Bernardo.
+  managerWagePerHour = 400,        -- per fleet hour
+  autoServiceBelow = 0.4,
 }
