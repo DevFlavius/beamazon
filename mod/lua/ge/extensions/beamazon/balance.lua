@@ -74,4 +74,10 @@ return {
 
   -- How many hours of fleet finance history to keep (shown in the phone's Finances tab).
   historyHours = 24,
+
+  -- PROVISIONAL (agent, 2026-10-24 night): branches, waiting for Flavio and Bernardo.
+  branches = {
+    dockyards = {name = 'Beamazon Dockyards', price = 60000, slots = 4, companyLevel = 3},
+  },
+  branchOrder = {'dockyards'},   -- display order
 }
