@@ -90,4 +90,14 @@ return {
   },
   truckUpgradeCostMultiplier = 2,
   upgradeResaleShare = 0.5,       -- share of the upgrade money a sale gives back
+
+  -- PROVISIONAL (agent, 2026-10-24 night): contracts, waiting for Flavio and Bernardo.
+  contractEverySeconds = 3600,     -- fleet seconds between new offers (when there is none)
+  contractOfferSeconds = 1800,     -- an offer not accepted disappears after this
+  contractTripsPerVehicle = 3,     -- trips asked = this * vehicles (at least 3)
+  contractHoursMin = 2, contractHoursMax = 3,
+  contractBonusPerTrip = 400,
+  contractPenaltyShare = 0.2,      -- share of the bonus charged when a contract is missed
+  contractXpPerDollar = 0.02,      -- company XP for a completed contract, per bonus dollar
+  contractClients = {'Spearleaf Logistics', 'Belasco Pharmacy', 'Firwood Market', 'Jefferson Motors Parts', 'Hirochi Electronics', 'Gavril Hardware'},
 }

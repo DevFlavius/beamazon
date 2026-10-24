@@ -34,6 +34,7 @@ local function newFleet()
     totals = {trips = 0, revenue = 0, costs = 0, net = 0, vanSeconds = 0, timedNet = 0, truckSeconds = 0, truckNet = 0},
     company = {hq = false, branches = {}},
     history = {},
+    contracts = {offer = nil, active = nil, timer = 0, completed = 0, failed = 0},
   }
 end
 
@@ -107,6 +108,7 @@ local function loadFleet()
           wages = tonumber(b.wages) or 0,
           purchases = tonumber(b.purchases) or 0,
           repairs = tonumber(b.repairs) or 0,
+          bonuses = tonumber(b.bonuses) or 0,
           net = tonumber(b.net) or 0,
         })
       end
@@ -117,6 +119,43 @@ local function loadFleet()
     loaded.history = history
   else
     loaded.history = {}
+  end
+  if type(data.contracts) == 'table' then
+    local contracts = {
+      timer = tonumber(data.contracts.timer) or 0,
+      completed = tonumber(data.contracts.completed) or 0,
+      failed = tonumber(data.contracts.failed) or 0,
+      offer = nil,
+      active = nil,
+    }
+    if type(data.contracts.offer) == 'table' then
+      local o = data.contracts.offer
+      contracts.offer = {
+        id = tonumber(o.id) or o.id,
+        client = tostring(o.client or ''),
+        trips = tonumber(o.trips) or 0,
+        seconds = tonumber(o.seconds) or 0,
+        left = tonumber(o.left) or 0,
+        bonus = tonumber(o.bonus) or 0,
+        penalty = tonumber(o.penalty) or 0,
+      }
+    end
+    if type(data.contracts.active) == 'table' then
+      local a = data.contracts.active
+      contracts.active = {
+        id = tonumber(a.id) or a.id,
+        client = tostring(a.client or ''),
+        trips = tonumber(a.trips) or 0,
+        done = tonumber(a.done) or 0,
+        seconds = tonumber(a.seconds) or 0,
+        left = tonumber(a.left) or 0,
+        bonus = tonumber(a.bonus) or 0,
+        penalty = tonumber(a.penalty) or 0,
+      }
+    end
+    loaded.contracts = contracts
+  else
+    loaded.contracts = {offer = nil, active = nil, timer = 0, completed = 0, failed = 0}
   end
   return loaded
 end
@@ -193,6 +232,9 @@ local function addWorkTime(dt, workingTrucks, workingVans)
   local vans = workingVans or countKind('van')
   fleet.totals.vanSeconds = fleet.totals.vanSeconds + dt * vans
   fleet.totals.truckSeconds = fleet.totals.truckSeconds + dt * (workingTrucks or 0)
+  if beamazon_contracts then
+    beamazon_contracts.onFleetTime(dt)
+  end
 end
 
 -- Net profit per truck-hour with a driver (wage already paid), or nil until one truck-hour of work.
@@ -292,6 +334,7 @@ local function currentBucket()
       wages = 0,
       purchases = 0,
       repairs = 0,
+      bonuses = 0,
       net = 0,
     }
     table.insert(fleet.history, last)
@@ -319,6 +362,15 @@ local function recordRepair(amount)
   local val = tonumber(amount) or 0
   bucket.repairs = bucket.repairs + val
   bucket.net = bucket.net - val
+end
+
+-- Records a contract bonus (amount > 0) or penalty (amount < 0) in the current hour's finance bucket.
+local function recordBonus(amount)
+  local bucket = currentBucket()
+  if not bucket then return end
+  local val = tonumber(amount) or 0
+  bucket.bonuses = bucket.bonuses + val
+  bucket.net = bucket.net + val
 end
 
 -- True, or false and the reason: 'careerInactive', 'vanLimit' or 'notEnoughMoney'.
@@ -626,6 +678,9 @@ local function recordTrip(van, result, driver)
   end
   log('D', logTag, string.format('%s delivered %d parcel(s) over %.1f km: revenue $%.2f, energy $%.2f, wear $%.2f, commission $%.2f, net $%.2f',
     van.name, #van.trip.parcels, van.trip.routeKm, result.revenue, result.energy, result.wear, result.commission, result.net))
+  if beamazon_contracts then
+    beamazon_contracts.onTrip(van)
+  end
 end
 
 -- Cost in $ to service a vehicle to 100% condition.
@@ -753,6 +808,11 @@ local function getHistory()
   return fleet and fleet.history or {}
 end
 
+-- The contracts state ({offer, active, timer, completed, failed}), or nil when not loaded.
+local function getContractState()
+  return fleet and fleet.contracts or nil
+end
+
 local function onExtensionLoaded()
   ensureLoaded()
 end
@@ -762,7 +822,9 @@ M.getVans = getVans
 M.getTotals = getTotals
 M.getCompany = getCompany
 M.getHistory = getHistory
+M.getContractState = getContractState
 M.recordPurchase = recordPurchase
+M.recordBonus = recordBonus
 M.countKind = countKind
 M.getNetPerTruckHour = getNetPerTruckHour
 M.getTruckPrice = getTruckPrice
