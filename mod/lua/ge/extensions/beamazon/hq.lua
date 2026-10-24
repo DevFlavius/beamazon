@@ -11,14 +11,43 @@ local poiType = 'beamazonHq'
 
 -- One HQ spot per level. pos is where the player stands to use it; the icon floats above it.
 local sites = {
-  rls_west_coast = {id = 'beamazonHqWestCoast', name = 'Beamazon HQ', pos = {-126.627, 36.444, 122.440}},
+-- desk is the office desk in front of the spot: offset from pos in metres and yaw in degrees (turn it if it clips a wall).
+  rls_west_coast = {id = 'beamazonHqWestCoast', name = 'Beamazon HQ', pos = {-126.627, 36.444, 122.440}, desk = {offset = {0, 1.3, 0}, yaw = 180}},
 }
+
+-- Game shapes (art_shapes.zip, the same the RLS garages use): an office desk with a laptop on top.
+local deskShape = '/art/shapes/garage_and_dealership/garage/s_office_desk.dae'
+local laptopShape = '/art/shapes/garage_and_dealership/garage/s_laptop_ON.dae'
+local deskTop = 0.78
+local laptopOnDesk = {-0.25, 0.1}
 
 local areaScale = {2.5, 2.5, 2}
 local iconHeight = 1.2
 
 local function objectNames(site)
   return site.id .. '_area', site.id .. '_icon'
+end
+
+-- A TSStatic made at runtime, built like flowgraph/nodes/scene/spawnTSStatic.lua; canSave = false keeps it out of the level file.
+local function spawnStatic(name, shape, pos, rot)
+  local object = createObject('TSStatic')
+  object.shapeName = shape
+  object:setPosition(pos)
+  local torque = rot:toTorqueQuat()
+  object:setField('rotation', 0, torque.x .. ' ' .. torque.y .. ' ' .. torque.z .. ' ' .. torque.w)
+  object.canSave = false
+  object:registerObject(name)
+  scenetree.MissionGroup:addObject(object)
+end
+
+-- The desk and the laptop of the HQ, once per loaded level.
+local function ensureDesk(site, pos)
+  local deskName, laptopName = site.id .. '_desk', site.id .. '_laptop'
+  if not site.desk or scenetree.findObject(deskName) then return end
+  local rot = quatFromEuler(0, 0, math.rad(site.desk.yaw))
+  local deskPos = pos + vec3(site.desk.offset[1], site.desk.offset[2], site.desk.offset[3])
+  spawnStatic(deskName, deskShape, deskPos, rot)
+  spawnStatic(laptopName, laptopShape, deskPos + rot * vec3(laptopOnDesk[1], laptopOnDesk[2], deskTop), rot)
 end
 
 -- Makes the area and icon objects once per loaded level; a Lua reload finds them still there.
@@ -38,6 +67,7 @@ local function ensureObjects(site)
     icon:registerObject(iconName)
     scenetree.MissionGroup:addObject(icon)
   end
+  ensureDesk(site, pos)
   return pos
 end
 

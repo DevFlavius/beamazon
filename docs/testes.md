@@ -62,6 +62,12 @@ Abra o app Beamazon (com ou sem sede) e toque na aba Finances.
   - Sem entregas na frota, exibe o aviso `No deliveries yet.`.
   - Com entregas feitas, exibe o cartão `Last 24 h` com os totais (Revenue, Energy, Wear, Commission, Driver wages, Vehicles bought/sold, Net) e o gráfico de barras do lucro líquido de cada hora com o horário embaixo (ex: `14h`), barras positivas em verde e negativas em vermelho.
 
+### 18. Mesa e notebook na sede
+
+Vá até a sede no mapa (o ícone laranja).
+
+- **Esperado:** ao lado do ponto aparecem uma mesa de escritório e um notebook ligado em cima dela (os mesmos das garagens do RLS). Se a mesa atravessar uma parede ou ficar virada para o lado errado, diga para que lado: o ajuste é uma linha (`desk.offset` e `desk.yaw` em `hq.lua`). Nenhuma linha `E` no log.
+
 ## Antes do release
 
 ### 7. Sem o RLS

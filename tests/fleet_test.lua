@@ -251,11 +251,21 @@ local V = {}
 V.__index = V
 V.__add = function(a, b) return setmetatable({x = a.x + b.x, y = a.y + b.y, z = a.z + b.z}, V) end
 function vec3(x, y, z) return setmetatable({x = x, y = y, z = z}, V) end
+-- a yaw-only quaternion: enough for the HQ desk
+local Q = {}
+Q.__index = Q
+Q.__mul = function(q, v)
+  local c, si = math.cos(q.yaw), math.sin(q.yaw)
+  return vec3(v.x * c - v.y * si, v.x * si + v.y * c, v.z)
+end
+function Q:toTorqueQuat() return {x = 0, y = 0, z = 1, w = self.yaw} end
+function quatFromEuler(x, y, z) return setmetatable({yaw = z}, Q) end
 local objects = {}
 local function sceneObject(class)
   local o = {class = class}
   function o:setPosition(p) self.pos = p end
   function o:setScale(v) self.scale = v end
+  function o:setField(name, index, value) self[name] = value end
   function o:registerObject(name) self.name = name; objects[name] = self end
   return o
 end
@@ -275,6 +285,10 @@ check(elem and elem.data.type == 'beamazonHq' and objects.beamazonHqWestCoast_ar
   and objects.beamazonHqWestCoast_icon.class == 'BeamNGPointOfInterest' and elem.markerInfo.walkingMarker.doors[1][2] == 'beamazonHqWestCoast_icon',
   'HQ: marker and its area and icon objects on rls_west_coast')
 check(math.abs(objects.beamazonHqWestCoast_icon.pos.z - (122.440 + 1.2)) < 0.001, 'HQ: icon above the spot')
+local desk, laptop = objects.beamazonHqWestCoast_desk, objects.beamazonHqWestCoast_laptop
+check(desk and desk.class == 'TSStatic' and desk.shapeName:find('s_office_desk') and desk.canSave == false and desk.rotation,
+  'HQ: office desk next to the spot, not saved in the level')
+check(laptop and laptop.shapeName:find('s_laptop_ON') and math.abs(laptop.pos.z - (desk.pos.z + 0.78)) < 0.001, 'HQ: laptop on the desk')
 local again = {}
 hq.onGetRawPoiListForLevel('rls_west_coast', again)
 check(#again == 1, 'HQ: a second POI build reuses the objects')
