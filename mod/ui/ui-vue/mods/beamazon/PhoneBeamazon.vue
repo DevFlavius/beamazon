@@ -127,6 +127,19 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="card-top">
+            <h2>Branches</h2>
+          </div>
+          <div v-for="branch in branches" :key="branch.id" class="row">
+            <span>{{ branch.name }} · +{{ branch.slots }} slots · {{ branch.owned ? 'Owned' : `${money(branch.price)} · company level ${branch.companyLevel}` }}</span>
+            <button v-if="branch.onThisMap" class="small-button" type="button" :disabled="busy" @click="act(`routeToSite('${safeId(branch.siteId)}')`, 'Route set: follow the GPS to the branch.', 'Get in a vehicle to set the route.')">
+              Route
+            </button>
+          </div>
+          <div class="hint">Buy a branch at its spot on the map.</div>
+        </div>
+
         <button v-if="company.hqOnThisMap" class="route-button" type="button" @click="act('routeToHq', 'Route set: follow the GPS to the Beamazon HQ.', 'Get in a vehicle to set the route.')">Route to the Beamazon HQ</button>
       </div>
 
@@ -234,6 +247,7 @@ const vans = computed(() => asList(data.vans))
 const atLimit = computed(() => vans.value.length >= data.vanLimit)
 const company = computed(() => data.company || {})
 const drivers = computed(() => asList(data.company?.drivers))
+const branches = computed(() => asList(data.company?.branches))
 const history = computed(() => asList(data.history))
 const historyTotals = computed(() => data.historyTotals || {
   trips: 0,
@@ -344,6 +358,7 @@ const errors = {
   notEnoughXp: "Not enough company XP.",
   locked: "Buy the upgrades it needs first.",
   maxLevel: "Already at the top level.",
+  noRoute: "Get in a vehicle to set the route.",
 }
 
 // Runs beamazon_phoneApp.<call> (a function name, or a call with its arguments) and shows the outcome.
