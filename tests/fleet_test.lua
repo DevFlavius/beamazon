@@ -239,6 +239,7 @@ r = beamazon_phoneApp.sellVan(sold.id)
 check(r.ok == false and r.reason == 'noVan' and money == before + value, 'selling the same van twice is refused')
 local first = fm.getVans()[1]
 first.pricePaid = nil
+first.condition = 1
 check(fm.getSellValue(first) == math.floor(7500 * 0.85 + 0.5), 'a van saved before prices were stored sells at the average')
 local kept = fm.getVans()[2]
 save('/saves/prof/autosave1')
@@ -431,7 +432,10 @@ active = true; extensions.hook('onOverhaulActive', true, false)
 local c = beamazon_fleetManager.getCompany()
 check(c.upgrades.bays == 5 and c.upgrades.routeSoftware == 2 and #c.drivers == 1 and c.nextDriverId == 4, 'upgrades and drivers survive the save')
 local kinds = {}
-for _, v in ipairs(beamazon_fleetManager.getVans()) do kinds[v.kind] = (kinds[v.kind] or 0) + 1 end
+for _, v in ipairs(beamazon_fleetManager.getVans()) do
+  kinds[v.kind] = (kinds[v.kind] or 0) + 1
+  if v.kind == 'truck' then v.condition = 1; truck = v end
+end
 check(kinds.truck == 1 and kinds.van == vans0, 'trucks survive the save')
 local okSell, value = beamazon_fleetManager.sellVan(truck.id)
 check(okSell and value == math.floor(truckPrice * 0.85 + 0.5), 'a truck sells for 85% of its price: $' .. tostring(value))
