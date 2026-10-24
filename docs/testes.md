@@ -28,13 +28,6 @@ Ctrl+L, depois no console: `beamazon_fleetManager.status()`. Cada van mostra `(i
 - Toque duas vezes: a van some, o saldo sobe exatamente $X, e o log mostra `sellVan: Van N sold for $X`.
 - Salve e recarregue: a van vendida não volta.
 
-### 11. Rendimento de ~$5.000 por van-hora
-
-Ctrl+L, depois no console: `beamazon_fleetSim.setSpeed(60)` e espere 3 ou 4 minutos (cada minuto real = 1 hora de frota).
-
-- **Esperado:** cada linha `addMoney` (uma por minuto) fica perto de $5.000 por van (com 3 vans, ~$15.000; varia bastante de um minuto para o outro).
-- Depois volte com `beamazon_fleetSim.setSpeed(1)`. O `status()` ainda mistura as horas antigas a $193, então o "per van-hour" dele sobe devagar; confira pelas linhas `addMoney`.
-
 ### 12. Teto offline de 2 h
 
 Salve, feche o jogo e volte depois de mais de 2 horas (pode ser no dia seguinte).
@@ -43,7 +36,7 @@ Salve, feche o jogo e volte depois de mais de 2 horas (pode ser no dia seguinte)
 
 ### 13. Sede da empresa
 
-Ctrl+L. Abra o mapa grande: há um ícone de laptop "Beamazon HQ" no ponto de Logística do West Coast (perto de onde o RLS dá as entregas). Vá a pé até lá.
+Feche e abra o jogo (o mapa do RLS lê o tipo novo de ponto só ao carregar o mod; o Ctrl+L pode não bastar). No mapa grande, no filtro, há um grupo "Beamazon" com o ícone de laptop "Beamazon HQ" no ponto de Logística do West Coast. No celular, dentro de um carro, o botão "Route to the Beamazon HQ" traça a rota no GPS (a pé, ele avisa para entrar num veículo). Vá até lá e desça do carro.
 
 - **Esperado:** o cartão "Beamazon HQ" mostra preço $80,000, "Logistics level: 20 required (yours: N)" e "Fleet slots: 5". Abaixo do nível 20, o botão fica bloqueado com "Reach Logistics level 20 first".
 - Para testar a compra sem chegar ao nível 20, no console: `require('beamazon/balance').hqUnlockLevel = 0` (vale só até o próximo Ctrl+L). Com menos de $80.000, o botão diz "Not enough money".
@@ -84,3 +77,4 @@ Rode `scripts/pack.sh` e instale `dist/beamazon.zip` no lugar do link (tire o li
 | 2026-10-24 | Crédito antes do save: save `perfil2` sem cheats grava $49.346,83 e o save recarrega com esse saldo | ok |
 | 2026-10-24 | Progresso offline: 0,2 h fora, `offline progress: 0.2 h` e $58,24 num lançamento só | ok |
 | 2026-10-24 | Vans pelo nível de Logística: nível 2 dá limite 0, as 3 vans antigas seguem trabalhando, oferta $5.999; app e `status()` sem erro (depois da correção `e91b7ec`) | ok |
+| 2026-10-24 | Rendimento com `setSpeed(60)`: entre os saves autosave2 e autosave3, 2 vans em 6,24 van-horas renderam $30.948 | ok, $4.960 por van-hora (meta ~$5.000) |

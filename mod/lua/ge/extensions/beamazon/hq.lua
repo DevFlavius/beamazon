@@ -41,6 +41,18 @@ local function ensureObjects(site)
   return pos
 end
 
+local function currentSite()
+  return sites[getCurrentLevelIdentifier() or '']
+end
+
+-- Sets the GPS route to the HQ of the loaded level; false when the level has none or there is no player vehicle.
+local function routeToHq()
+  local site = currentSite()
+  if not site or not freeroam_bigMapMode or not getPlayerVehicle(0) then return false end
+  freeroam_bigMapMode.setNavFocus(vec3(site.pos[1], site.pos[2], site.pos[3]))
+  return true
+end
+
 local function onGetRawPoiListForLevel(levelIdentifier, elements)
   local site = sites[levelIdentifier]
   if not site or not beamazon_adapter.isCareerActive() then return end
@@ -121,6 +133,8 @@ local function onExtensionLoaded()
 end
 
 M.buildCard = buildCard
+M.hasSite = function() return currentSite() ~= nil end
+M.routeToHq = routeToHq
 M.onGetRawPoiListForLevel = onGetRawPoiListForLevel
 M.onActivityAcceptGatherData = onActivityAcceptGatherData
 M.onBeamazonCareerActive = onBeamazonCareerActive

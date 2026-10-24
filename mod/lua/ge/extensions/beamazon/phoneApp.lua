@@ -44,6 +44,7 @@ local function getData()
       hqPrice = balance.hqPrice,
       hqUnlockLevel = balance.hqUnlockLevel,
       hqSlots = balance.hqSlots,
+      hqOnThisMap = beamazon_hq.hasSite(),
     },
     totals = beamazon_fleetManager.getTotals(),
     netPerVanHour = beamazon_fleetManager.getNetPerVanHour(),
@@ -63,7 +64,13 @@ local function sellVan(id)
   return {ok = ok, reason = not ok and result or nil, value = ok and result or nil, data = getData()}
 end
 
+-- {ok, data}: ok is false when this map has no HQ or the player is on foot without a vehicle.
+local function routeToHq()
+  return {ok = beamazon_hq.routeToHq(), data = getData()}
+end
+
 M.getData = getData
+M.routeToHq = routeToHq
 M.sellVan = sellVan
 M.buyVan = buyVan
 

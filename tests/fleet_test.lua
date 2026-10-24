@@ -29,6 +29,8 @@ function jsonReadFile(p) return deepcopy(disk[p]) end
 -- fake RLS
 local money, xp, active, ledger = 0, 0, true, {}
 local logisticsLevel, marketIndex = 15, 1
+local level = 'rls_west_coast'
+function getCurrentLevelIdentifier() return level end
 local function installRls()
   overhaul_career_career = {isActive = function() return active end}
   overhaul_career_economy_playerAttributes = {
@@ -297,6 +299,17 @@ check(c.buttonLabel == 'Open the phone' and not c.disabled, 'HQ card once owned'
 c.buttonFun()
 check(phoneOpened, 'HQ card opens the phone')
 check(beamazon_phoneApp.getData().company.hq == true, 'phone shows the company')
+local navTarget
+freeroam_bigMapMode = {setNavFocus = function(pos) navTarget = pos end}
+local playerVehicle = nil
+function getPlayerVehicle() return playerVehicle end
+check(beamazon_phoneApp.routeToHq().ok == false and navTarget == nil, 'HQ route: refused on foot')
+playerVehicle = {}
+local route = beamazon_phoneApp.routeToHq()
+check(route.ok and navTarget and math.abs(navTarget.x + 126.627) < 0.001 and route.data.company.hqOnThisMap, 'HQ route: GPS set to the HQ')
+level = 'italy'
+check(beamazon_phoneApp.getData().company.hqOnThisMap == false and beamazon_phoneApp.routeToHq().ok == false, 'HQ route: none on a map without an HQ')
+level = 'rls_west_coast'
 save('/saves/prof/autosave1')
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_fleetManager.ownsHq() == false, 'career off: no company')

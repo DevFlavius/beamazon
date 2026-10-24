@@ -22,6 +22,7 @@
       </div>
       <div v-if="data.company?.hq" class="rate">Company HQ · {{ data.company.hqSlots }} fleet slots</div>
       <div v-else-if="data.company" class="rate">Logistics level {{ data.company.hqUnlockLevel }} lets you buy the company HQ ({{ money(data.company.hqPrice) }})</div>
+      <button v-if="data.company?.hqOnThisMap" class="route-button" type="button" @click="routeToHq">Route to the Beamazon HQ</button>
       <div v-if="typeof data.netPerVanHour === 'number'" class="rate">{{ money(data.netPerVanHour) }} profit per van-hour</div>
 
       <button class="buy-button" type="button" :disabled="buying || atLimit" @click="buyVan">
@@ -121,6 +122,13 @@ async function buyVan() {
   } finally {
     buying.value = false
   }
+}
+
+async function routeToHq() {
+  const result = await runRaw("beamazon_phoneApp and beamazon_phoneApp.routeToHq()")
+  apply(result?.data)
+  messageIsError.value = !result?.ok
+  message.value = result?.ok ? "Route set: follow the GPS to the Beamazon HQ." : "Get in a vehicle to set the route."
 }
 
 const sellErrors = {
@@ -299,6 +307,17 @@ onUnmounted(() => {
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.12);
   overflow: hidden;
+}
+
+.route-button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  border: 1px solid rgba(252, 217, 168, 0.45);
+  border-radius: 8px;
+  background: transparent;
+  color: #fcd9a8;
+  font: inherit;
+  font-size: 0.82rem;
 }
 
 .sell-button {

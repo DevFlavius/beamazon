@@ -1,0 +1,30 @@
+{
+  "id": "beamazon_hq",
+  "order": 1000,
+  "module": "beamazon/hq",
+  "scopes": [],
+  "policyOnly": true,
+  "bigMap": {
+    "types": [
+      {
+        "id": "beamazonHq",
+        "icon": "laptop"
+      }
+    ],
+    "groups": [
+      {
+        "id": "type_beamazonHq",
+        "label": "Beamazon",
+        "icon": "laptop",
+        "placements": {
+          "career": [
+            {
+              "section": "freeroamPois",
+              "order": 14
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
