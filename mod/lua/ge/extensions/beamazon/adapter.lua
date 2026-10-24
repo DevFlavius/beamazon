@@ -38,7 +38,8 @@ local function getMoney()
 end
 
 -- Credits (or, with a negative amount, debits) without a balance check.
-local function addMoney(amount, label)
+-- xp (optional) is Logistics skill XP credited in the same entry.
+local function addMoney(amount, label, xp)
   if not isValidAmount(amount) then
     log('E', logTag, 'addMoney: invalid amount ' .. tostring(amount))
     return false
@@ -51,8 +52,10 @@ local function addMoney(amount, label)
     log('W', logTag, 'addMoney: career is not active')
     return false
   end
-  overhaul_career_economy_playerAttributes.addAttributes({money = amount}, ledgerReason(label))
-  log('I', logTag, string.format('addMoney: %s (balance: %s)', tostring(amount), tostring(getMoney())))
+  local change = {money = amount}
+  if type(xp) == 'number' and xp > 0 then change['logistics-delivery'] = xp end
+  overhaul_career_economy_playerAttributes.addAttributes(change, ledgerReason(label))
+  log('I', logTag, string.format('addMoney: %s, %s XP (balance: %s)', tostring(amount), tostring(xp or 0), tostring(getMoney())))
   return true
 end
 
@@ -91,12 +94,13 @@ local function getParcelTemplates()
   return list
 end
 
--- What RLS pays the player for one parcel over this distance, live economy included.
+-- What RLS pays the player for one parcel over this distance, live economy included: money, Logistics XP.
 local function getParcelReward(slots, rewardWeight, distanceMeters)
   if not isCareerActive() then return nil end
   local item = {slots = slots, data = {rewardWeight = rewardWeight}}
   local rewards = require('overhaul/lib/logistics/calculators').getParcelReward(item, distanceMeters)
-  return rewards and tonumber(rewards.money) or nil
+  if not rewards then return nil end
+  return tonumber(rewards.money), tonumber(rewards['logistics-delivery']) or 0
 end
 
 -- Save -------------------------------------------------------------------------------------------

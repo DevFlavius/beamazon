@@ -32,9 +32,17 @@ Salve, saia para o menu (ou feche o jogo) e espere uns 15 minutos de relógio. C
 - **Esperado:** no log aparecem `fleet loaded: N van(s), 0.2 h away` e `offline progress: 0.2 h`. O livro-caixa ganha uma linha "Beamazon: offline deliveries (N)".
 - O teto é de 8 h. Para testar, mude o relógio do PC ou só confira: fora mais de 8 h deve dar `8.0 h away`.
 
+### 4. Limite de 3 vans e XP de Logística
+
+Com 3 vans, tente comprar a 4ª pelo console (`beamazon_fleetManager.buyVan()`) e pelo app.
+
+- **Esperado:** o console devolve `false` e o log mostra `buyVan: van limit reached (3)`. Nada é cobrado. No app, o resumo mostra "Vans 3 / 3" e o botão vira "Van limit reached", desativado.
+- Num save que já tinha mais de 3 vans, elas continuam. Só a compra fica bloqueada.
+- Depois de alguns pagamentos da frota, as linhas `addMoney: ..., N XP` mostram um XP pequeno. A barra da skill Logistics sobe bem devagar e sem erro no log.
+
 ## Não crítico (acumula)
 
-### 4. App no celular
+### 5. App no celular
 
 Instale o app "Beamazon" pela App Store do celular do RLS e abra.
 
@@ -42,7 +50,7 @@ Instale o app "Beamazon" pela App Store do celular do RLS e abra.
 - Com dinheiro, o botão compra uma van e cobra o preço. Sem dinheiro, ele mostra "Not enough money for a van." e não cobra nada.
 - O botão voltar leva à tela inicial do celular.
 
-### 5. Lucro por van-hora
+### 6. Lucro por van-hora
 
 Com `setSpeed(60)`, espere 1 minuto por van e rode `beamazon_fleetManager.status()`.
 
@@ -51,13 +59,13 @@ Com `setSpeed(60)`, espere 1 minuto por van e rode `beamazon_fleetManager.status
 
 ## Antes do release
 
-### 6. Sem o RLS
+### 7. Sem o RLS
 
 Desative o RLS no gerenciador de mods, deixe o Beamazon ativo e abra a carreira normal.
 
 - **Esperado:** o jogo e a carreira carregam. O log mostra `adapter loaded` e nenhuma linha `E` do Beamazon. Nada é cobrado nem pago.
 
-### 7. O zip
+### 8. O zip
 
 Rode `scripts/pack.sh` e instale `dist/beamazon.zip` no lugar do link (tire o link de `mods/unpacked/` antes).
 

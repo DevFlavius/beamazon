@@ -90,9 +90,17 @@ Exemplo com vagas de frota = metade dos slots, arredondando para cima (garagens 
 
 A frota é uma empresa que evolui, no modelo do Tuning Shop do RLS (conta e XP próprios, árvore de habilidades). Ganha XP por entrega e desbloqueia vagas, contratos melhores e comissão menor.
 
-**Decisão em aberto:** a localização importa?
-- **A:** só a quantidade de vagas conta, e as vans atendem o mapa todo.
-- **B:** cada van trabalha perto da propriedade onde está, então comprar imóvel perto dos polos de carga vira estratégia.
+Decidido pelo Flavio em 2026-10-24 (nota de voz):
+
+- **Pessoa física:** até 3 vans, sem empresa. Feito (`balance.personalVanLimit`).
+- **Empresa:** para passar de 3 vans, o jogador abre uma empresa. O nível dela mistura duas coisas: **XP próprio da empresa**, ganho pelas entregas da frota, e uma **árvore de upgrades** no modelo das empresas do RLS (o RLS lê as árvores de `gameplay/overhaul/business/skillTrees/*.json`, então o addon pode trazer a sua). Cada nível sobe o limite de vans e a eficiência das entregas, e talvez o pagamento. Há muitos níveis, então cada um libera pouco (exemplo: +2 vans; nível 1 = 10 vans).
+- **XP de Logística do jogador:** a frota dá muito pouco, de propósito (`balance.fleetXpShare`, 2% do XP que um motorista ganharia; provisório). O jogador não pode subir de nível parado.
+- **Filial:** um lugar no mapa, comprado com garagens e vagas. Ela soma vagas para vans.
+- **Localização: A.** As vans atendem o mapa todo; a filial não limita a região das entregas.
+
+Ordem: 1) limite de pessoa física (feito); 2) a empresa com nível e upgrades; 3) as filiais.
+
+Números ainda a decidir com o Bernardo: o preço de abrir a empresa, o limite por nível, o XP por nível, o preço das filiais e quantas vagas cada uma dá.
 
 ## Integração com o RLS
 

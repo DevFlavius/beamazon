@@ -87,5 +87,6 @@ Teste da lógica sem o jogo: `cd tests && npm install && npm test` roda os módu
 
 ## Decisões em aberto (dos irmãos, não do agente)
 
-- Localização da van: **A**, só a quantidade de vagas conta; ou **B**, cada van atende a região da propriedade onde está.
-- Os números de balanceamento (metas iniciais em `docs/plano.md`).
+- Os números de balanceamento (metas iniciais em `docs/plano.md`), inclusive os da empresa e das filiais.
+
+Decididas (2026-10-24, detalhes em `docs/plano.md`, "Empresa de entregas"): localização **A** (as vans atendem o mapa todo); pessoa física até 3 vans; acima disso, uma empresa com XP próprio e árvore de upgrades; filial é um lugar no mapa que soma vagas; a frota dá muito pouco XP de Logística ao jogador.

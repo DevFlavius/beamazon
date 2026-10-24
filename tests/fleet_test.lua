@@ -27,12 +27,14 @@ local disk = {}
 function jsonReadFile(p) return deepcopy(disk[p]) end
 
 -- fake RLS
-local money, active, ledger = 0, true, {}
+local money, xp, active, ledger = 0, 0, true, {}
 local function installRls()
   overhaul_career_career = {isActive = function() return active end}
   overhaul_career_economy_playerAttributes = {
     getAttributeValue = function() return money end,
-    addAttributes = function(c, r) money = money + c.money; table.insert(ledger, {c.money, r.label, r.category}) end,
+    addAttributes = function(c, r)
+      money = money + c.money; xp = xp + (c['logistics-delivery'] or 0)
+      table.insert(ledger, {c.money, r.label, r.category, c['logistics-delivery']}) end,
   }
   overhaul_career_economy_payment = {pay = function(price, r)
     if price.money.amount > money then return false end
@@ -50,7 +52,7 @@ local function installRls()
     local sr = 3^(0.30+math.sqrt(s)/100); local mn = 10+2*math.sqrt(s); local h = s*1.15
     local b = math.max(mn, h+km*sr*(5+wr(w))*1.075); local t = tier(s)
     local ref = math.max(mn, h+4*1.609344*sr*(5+wr(refw[t]))*1.075)
-    return {money = b*pay[t]/ref} end} end
+    return {money = b*pay[t]/ref, ['logistics-delivery'] = 10} end} end
   package.preload['overhaul/lib/logistics/templates'] = function() return {getTemplatesByLogisticType = function() return {
     {id='smallPostParcel', slots={1,2,3,4}, weight={1,2,3,4,5}, generationChance=0.3},
     {id='mediumPostParcel', slots={6,8,10,12}, weight={8,10,12}, generationChance=0.25},
@@ -103,6 +105,7 @@ save('/saves/prof/autosave1')
 check(math.abs(money - base - (vans[1].net + vans[2].net)) < 0.01, 'after a save, money matches the vans net')
 check(disk['/saves/prof/autosave1/career/playerattributes.json'].money == money, 'saved balance includes every trip')
 check(ledger[#ledger][3] == 'business', 'ledger category business')
+check(xp >= 1 and xp == math.floor(xp) and xp <= totalTrips() * 6 * 10 * 0.02, 'fleet gives a little whole-point Logistics XP: ' .. xp)
 beamazon_fleetManager.status()
 local totals = beamazon_fleetManager.getTotals()
 local perHour = beamazon_fleetManager.getNetPerVanHour()
@@ -153,12 +156,21 @@ check(gained <= 3, 'clock moved back: no offline progress')
 local d = beamazon_phoneApp.getData()
 check(d.active and #d.vans == 3 and d.vanPrice == 1000 and d.totals.trips > 0 and d.netPerVanHour > 0, 'phone data: vans, price, totals and rate')
 check(d.vans[1].progress >= 0 and d.vans[1].progress <= 1 and type(d.vans[1].name) == 'string', 'phone data: van rows')
-money = 0
+check(d.vanLimit == 3, 'phone data: van limit')
+money = 5000
+local ok, why = beamazon_fleetManager.buyVan()
+check(ok == false and why == 'vanLimit' and money == 5000 and #beamazon_fleetManager.getVans() == 3, 'personal limit: a 4th van is refused and not charged')
 local r = beamazon_phoneApp.buyVan()
+check(r.ok == false and r.reason == 'vanLimit' and #r.data.vans == 3, 'phone buy at the limit: reason, no van')
+local balance = require('beamazon/balance')
+balance.personalVanLimit = 10
+money = 0
+r = beamazon_phoneApp.buyVan()
 check(r.ok == false and r.reason == 'notEnoughMoney' and #r.data.vans == 3, 'phone buy without money: reason, no van')
 money = 5000
 r = beamazon_phoneApp.buyVan()
 check(r.ok and #r.data.vans == 4 and money == 4000, 'phone buy adds a van and charges')
+balance.personalVanLimit = 3
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')

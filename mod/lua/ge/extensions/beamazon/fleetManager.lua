@@ -18,8 +18,8 @@ local fleet
 -- Real seconds the player was away since the loaded save; fleetSim takes them once.
 local offlineSeconds = 0
 
--- Trip profits not yet in the balance.
-local pending = {net = 0, trips = 0}
+-- Trip profits and XP not yet credited. XP goes out in whole points; the fraction waits for the next payout.
+local pending = {net = 0, trips = 0, xp = 0}
 local payoutTimer = 0
 
 local function newFleet()
@@ -66,7 +66,7 @@ local function loadFleet()
 end
 
 local function setLoaded(active)
-  pending = {net = 0, trips = 0}
+  pending = {net = 0, trips = 0, xp = 0}
   payoutTimer = 0
   offlineSeconds = 0
   if active then
@@ -107,11 +107,20 @@ local function addWorkTime(dt)
   fleet.totals.vanSeconds = fleet.totals.vanSeconds + dt * #fleet.vans
 end
 
--- True, or false and the reason: 'careerInactive' or 'notEnoughMoney'.
+-- How many vans the player may own. Without a company this is balance.personalVanLimit.
+local function getVanLimit()
+  return balance.personalVanLimit
+end
+
+-- True, or false and the reason: 'careerInactive', 'vanLimit' or 'notEnoughMoney'.
 local function buyVan()
   if not ensureLoaded() then
     log('W', logTag, 'buyVan: career is not active (RLS Career Overhaul is required)')
     return false, 'careerInactive'
+  end
+  if #fleet.vans >= getVanLimit() then
+    log('W', logTag, string.format('buyVan: van limit reached (%d)', getVanLimit()))
+    return false, 'vanLimit'
   end
   local id = fleet.nextVanId
   if not beamazon_adapter.pay(balance.vanPrice, 'Beamazon: van ' .. id) then
@@ -133,8 +142,9 @@ end
 -- Puts the pending trip profits in the balance as one ledger entry.
 local function payOut(label)
   if pending.trips == 0 then return end
-  beamazon_adapter.addMoney(pending.net, string.format('Beamazon: %s (%d)', label or 'fleet deliveries', pending.trips))
-  pending = {net = 0, trips = 0}
+  local xp = math.floor(pending.xp)
+  beamazon_adapter.addMoney(pending.net, string.format('Beamazon: %s (%d)', label or 'fleet deliveries', pending.trips), xp)
+  pending = {net = 0, trips = 0, xp = pending.xp - xp}
 end
 
 -- Called by fleetSim after each tick with the game seconds that passed.
@@ -150,6 +160,7 @@ local function recordTrip(van, result)
   local costs = result.energy + result.wear + result.commission
   pending.net = pending.net + result.net
   pending.trips = pending.trips + 1
+  pending.xp = pending.xp + (result.xp or 0)
   van.trips = van.trips + 1
   van.net = van.net + result.net
   fleet.totals.trips = fleet.totals.trips + 1
@@ -204,6 +215,7 @@ M.ensureLoaded = ensureLoaded
 M.getVans = getVans
 M.getTotals = getTotals
 M.getNetPerVanHour = getNetPerVanHour
+M.getVanLimit = getVanLimit
 M.addWorkTime = addWorkTime
 M.buyVan = buyVan
 M.takeOfflineSeconds = takeOfflineSeconds

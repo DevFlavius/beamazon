@@ -53,9 +53,11 @@ end
 
 -- Revenue at today's RLS prices, minus the costs. All values in $.
 local function settleTrip(trip)
-  local revenue = 0
+  local revenue, driverXp = 0, 0
   for _, parcel in ipairs(trip.parcels) do
-    revenue = revenue + (beamazon_adapter.getParcelReward(parcel.slots, parcel.rewardWeight, trip.routeKm * 1000) or 0)
+    local parcelMoney, parcelXp = beamazon_adapter.getParcelReward(parcel.slots, parcel.rewardWeight, trip.routeKm * 1000)
+    revenue = revenue + (parcelMoney or 0)
+    driverXp = driverXp + (parcelXp or 0)
   end
   local energy = trip.drivenKm * balance.energyKwhPerKm * balance.energyPricePerKwh
   local wear = trip.drivenKm * balance.wearPerKm
@@ -66,6 +68,7 @@ local function settleTrip(trip)
     wear = roundCents(wear),
     commission = roundCents(commission),
     net = roundCents(revenue - energy - wear - commission),
+    xp = driverXp * balance.fleetXpShare,
   }
 end
 

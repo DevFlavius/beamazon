@@ -3,6 +3,7 @@
 
 return {
   vanPrice = 1000,                -- $ per van
+  personalVanLimit = 3,           -- vans the player can own without a company (decided 2026-10-24)
 
   -- A trip: the van loads parcels at the depot, drives the route, delivers and comes back.
   vanCapacitySlots = 24,          -- cargo slots per trip
@@ -17,6 +18,9 @@ return {
   energyPricePerKwh = 0.40,       -- $
   wearPerKm = 0.15,               -- $
   commission = 0.25,              -- share of the trip revenue
+
+  -- The fleet gives the player a very small share of the Logistics XP a driver would earn (decided: "muito pouco").
+  fleetXpShare = 0.02,
 
   -- While the player is away, the fleet keeps working up to this many real hours.
   offlineCapHours = 8,

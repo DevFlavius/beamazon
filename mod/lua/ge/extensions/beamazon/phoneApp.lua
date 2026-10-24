@@ -35,13 +35,14 @@ local function getData()
   return {
     active = true,
     vanPrice = balance.vanPrice,
+    vanLimit = beamazon_fleetManager.getVanLimit(),
     totals = beamazon_fleetManager.getTotals(),
     netPerVanHour = beamazon_fleetManager.getNetPerVanHour(),
     vans = vans,
   }
 end
 
--- {ok, reason, data}: reason is 'careerInactive' or 'notEnoughMoney' when ok is false.
+-- {ok, reason, data}: reason is 'careerInactive', 'vanLimit' or 'notEnoughMoney' when ok is false.
 local function buyVan()
   local ok, reason = beamazon_fleetManager.buyVan()
   return {ok = ok, reason = reason, data = getData()}
