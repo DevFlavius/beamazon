@@ -8,6 +8,7 @@ local balance = require('beamazon/balance')
 local function vanRow(van)
   local row = {
     id = van.id,
+    kind = van.kind,
     name = van.name,
     trips = van.trips,
     net = van.net,
@@ -17,12 +18,44 @@ local function vanRow(van)
     routeKm = 0,
     sellValue = beamazon_fleetManager.getSellValue(van),
   }
+  if van.kind == 'truck' then
+    local driver = beamazon_company.getTruckDriver(van)
+    row.driver = driver and driver.name or nil
+  end
   if van.trip then
     row.progress = math.min(van.tripElapsed / van.trip.durationS, 1)
     row.parcels = #van.trip.parcels
     row.routeKm = van.trip.routeKm
   end
   return row
+end
+
+local function driverRow(driver)
+  return {id = driver.id, name = driver.name, trips = tonumber(driver.trips) or 0, earned = tonumber(driver.earned) or 0}
+end
+
+local function companyData()
+  local data = {
+    hq = beamazon_fleetManager.ownsHq(),
+    hqPrice = balance.hqPrice,
+    hqUnlockLevel = balance.hqUnlockLevel,
+    hqSlots = balance.hqSlots,
+    hqOnThisMap = beamazon_hq.hasSite(),
+  }
+  if not data.hq then return data end
+  local c = beamazon_fleetManager.getCompany()
+  local drivers = {}
+  for _, driver in ipairs(beamazon_company.getDrivers()) do table.insert(drivers, driverRow(driver)) end
+  data.level = beamazon_company.getLevel()
+  data.xp = math.floor(tonumber(c.xp) or 0)
+  data.drivers = drivers
+  data.driverSlots = beamazon_company.getDriverSlots()
+  data.driverWageShare = beamazon_company.getDriverWageShare()
+  data.trucks = beamazon_fleetManager.countKind('truck')
+  data.truckPrice = beamazon_fleetManager.getTruckPrice()
+  data.netPerTruckHour = beamazon_fleetManager.getNetPerTruckHour()
+  data.tree = beamazon_company.getTreeView()
+  return data
 end
 
 local function getData()
@@ -39,13 +72,7 @@ local function getData()
     vanLimit = beamazon_fleetManager.getVanLimit(),
     logisticsLevel = beamazon_adapter.getLogisticsLevel(),
     nextVanUnlock = beamazon_fleetManager.getNextVanUnlock(),
-    company = {
-      hq = beamazon_fleetManager.ownsHq(),
-      hqPrice = balance.hqPrice,
-      hqUnlockLevel = balance.hqUnlockLevel,
-      hqSlots = balance.hqSlots,
-      hqOnThisMap = beamazon_hq.hasSite(),
-    },
+    company = companyData(),
     totals = beamazon_fleetManager.getTotals(),
     netPerVanHour = beamazon_fleetManager.getNetPerVanHour(),
     vans = vans,
@@ -69,7 +96,24 @@ local function routeToHq()
   return {ok = beamazon_hq.routeToHq(), data = getData()}
 end
 
+-- {ok, reason, data} for each company action; reason is the module's reason string when ok is false.
+local function result(ok, reason)
+  return {ok = ok == true, reason = not ok and reason or nil, data = getData()}
+end
+
+local function buyTruck() return result(beamazon_fleetManager.buyTruck()) end
+local function buyUpgrade(id) return result(beamazon_company.buyUpgrade(id)) end
+local function hireDriver()
+  local ok, driverOrReason = beamazon_company.hireDriver()
+  return result(ok, driverOrReason)
+end
+local function fireDriver(id) return result(beamazon_company.fireDriver(id)) end
+
 M.getData = getData
+M.buyTruck = buyTruck
+M.buyUpgrade = buyUpgrade
+M.hireDriver = hireDriver
+M.fireDriver = fireDriver
 M.routeToHq = routeToHq
 M.sellVan = sellVan
 M.buyVan = buyVan

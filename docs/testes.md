@@ -25,9 +25,34 @@ Ctrl+L no save onde a sede já foi comprada e rode `beamazon_fleetManager.status
 
 - **Esperado:** com nível 15 ou mais, o limite é 8 (3 pessoais + 5 da sede). O celular mostra `Company HQ · +5 fleet slots` e deixa comprar até a 8ª van.
 
+### 14. Empresa: melhorias, motorista e caminhão (dinheiro e save)
+
+No save com a sede. Dê XP de empresa para testar: rode a frota acelerada (`beamazon_fleetSim.setSpeed(60)`) alguns minutos, ou confira o XP em `beamazon_fleetManager.status()`.
+
+1. `beamazon_company.buyUpgrade('bays')`: cobra $15.000 e o limite da frota sobe 1 (9).
+2. `beamazon_fleetManager.buyTruck()`: cobra ~$18.000. Em `status()` o caminhão aparece como `parked, no driver`.
+3. `beamazon_company.hireDriver()`: o caminhão começa a rodar. Depois de uma viagem, o lucro dele já vem sem o salário do motorista.
+4. Salve, recarregue (Ctrl+L) e rode `status()`.
+
+- **Esperado:** cada compra aparece como um lançamento no extrato. Depois do recarregamento, a melhoria, o motorista e o caminhão continuam lá. Nenhuma linha `E` no log.
+
 ## Não crítico (acumula)
 
-(vazio)
+### 15. Celular: abas Frota / Empresa / Melhorias
+
+Com a sede comprada, abra o app Beamazon.
+
+- **Esperado:** aparecem três abas.
+  - **Frota:** botões Van e Truck, e o caminhão sem motorista mostra `Parked · no driver`.
+  - **Empresa:** nível e barra de XP, e os motoristas, contratados e demitidos com dois toques.
+  - **Melhorias:** grupos People / HQ / Operations. Cada botão mostra preço e XP; o bloqueado diz `Needs …`.
+- Comprar uma melhoria pelo celular cobra e atualiza a tela.
+
+### 16. XP e nível da empresa
+
+Com a frota rodando acelerada, observe o nível na aba Empresa.
+
+- **Esperado:** o XP sobe com o lucro (1 XP a cada $100). Ao passar de 500 XP, aparece o aviso `Your company reached level 2.`
 
 ## Antes do release
 

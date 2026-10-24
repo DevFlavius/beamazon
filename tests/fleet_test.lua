@@ -392,6 +392,19 @@ check(perTruck and perTruck > perVan, string.format('a truck nets more per hour 
 check(company.fireDriver(driver.id) and company.getTruckDriver(truck) ~= nil, 'firing a driver: the other one takes the truck')
 check(company.fireDriver(999) == false, 'firing an unknown driver is refused')
 
+-- the phone's company tab
+local pd = beamazon_phoneApp.getData()
+check(pd.company.level.level >= 1 and #pd.company.drivers == 1 and pd.company.driverSlots == 2 and #pd.company.tree >= 10 and pd.company.trucks == 1, 'phone data: company, drivers and tree')
+local truckRow
+for _, row in ipairs(pd.vans) do if row.kind == 'truck' then truckRow = row end end
+check(truckRow and truckRow.driver ~= nil, 'phone data: a truck row names its driver')
+local r = beamazon_phoneApp.hireDriver()
+check(r.ok and #r.data.company.drivers == 2, 'phone: hire a driver')
+r = beamazon_phoneApp.fireDriver(r.data.company.drivers[2].id)
+check(r.ok and #r.data.company.drivers == 1, 'phone: fire a driver')
+r = beamazon_phoneApp.buyUpgrade('nope')
+check(not r.ok and r.reason == 'unknown', 'phone: unknown upgrade refused')
+
 -- offline cap with the Night Dispatcher
 company.buyUpgrade('nightDispatcher')
 check(company.getEffect('offlineHours') == 1, 'Night Dispatcher: +1 h offline')
@@ -402,7 +415,7 @@ save('/saves/prof/autosave1')
 active = false; extensions.hook('onOverhaulActive', false)
 active = true; extensions.hook('onOverhaulActive', true, false)
 local c = beamazon_fleetManager.getCompany()
-check(c.upgrades.bays == 5 and c.upgrades.routeSoftware == 2 and #c.drivers == 1 and c.nextDriverId == 3, 'upgrades and drivers survive the save')
+check(c.upgrades.bays == 5 and c.upgrades.routeSoftware == 2 and #c.drivers == 1 and c.nextDriverId == 4, 'upgrades and drivers survive the save')
 local kinds = {}
 for _, v in ipairs(beamazon_fleetManager.getVans()) do kinds[v.kind] = (kinds[v.kind] or 0) + 1 end
 check(kinds.truck == 1 and kinds.van == vans0, 'trucks survive the save')
