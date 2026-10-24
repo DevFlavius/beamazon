@@ -55,6 +55,18 @@ return {
     effect = {runningCosts = -0.20},
   },
   {
+    id = 'workshop', title = 'Own Workshop', group = 'Operations',
+    description = 'Servicing costs 15% less.',
+    maxLevel = 3, cost = {base = 20000, increment = 20000}, xpCost = {base = 150, increment = 150},
+    effect = {serviceCost = -0.15}, dependencies = {{id = 'serviceContract', level = 1}},
+  },
+  {
+    id = 'preventive', title = 'Preventive Maintenance', group = 'Operations',
+    description = 'Vehicles wear 15% slower.',
+    maxLevel = 3, cost = {base = 25000, increment = 25000}, xpCost = {base = 200, increment = 150},
+    effect = {conditionLoss = -0.15}, dependencies = {{id = 'workshop', level = 1}},
+  },
+  {
     id = 'ownDispatch', title = 'Own Dispatch', group = 'Operations',
     description = 'The delivery platform takes 5 points less commission.',
     maxLevel = 3, cost = {base = 40000, increment = 40000}, xpCost = {base = 400, increment = 200},

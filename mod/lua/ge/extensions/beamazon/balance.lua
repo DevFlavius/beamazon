@@ -62,6 +62,16 @@ return {
   -- While the player is away, the fleet keeps working up to this many real hours.
   offlineCapHours = 2,             -- lowered from 8 (Flavio, 2026-10-24): at ~$5,000 per van-hour, 8 h paid up to $120,000 with 3 vans
 
+  -- PROVISIONAL (agent, 2026-10-24 night): condition and breakdowns, waiting for Flavio and Bernardo.
+  conditionLossPerKm = 0.0015,      -- 1.0 = 100%; a van at ~40 km per trip loses ~6% per trip
+  truckConditionLossPerKm = 0.001,
+  breakdownBelow = 0.5,             -- below this condition, each finished trip may break down
+  breakdownChanceMax = 0.25,        -- chance per trip at condition 0, scaling linearly to 0 at breakdownBelow
+  breakdownRepairSeconds = 1800,    -- a broken vehicle stands still this many fleet seconds
+  breakdownRepairCost = 600,        -- $ for a van; a truck pays x2
+  serviceCostPerPoint = 20,         -- $ per percentage point restored (van); a truck pays x2
+  minCondition = 0.0,
+
   -- How many hours of fleet finance history to keep (shown in the phone's Finances tab).
   historyHours = 24,
 }
