@@ -15,14 +15,14 @@
     </div>
 
     <template v-else>
-      <nav v-if="data.company?.hq" class="tabs">
+      <nav class="tabs">
         <button v-for="t in tabs" :key="t.id" type="button" :class="{ active: tab === t.id }" @click="tab = t.id">{{ t.label }}</button>
       </nav>
 
       <div v-if="message" class="message" :class="{ error: messageIsError }">{{ message }}</div>
 
       <!-- Fleet -->
-      <template v-if="tab === 'fleet' || !data.company?.hq">
+      <template v-if="tab === 'fleet'">
         <div class="summary">
           <div><span>Vehicles</span><strong>{{ vans.length }} / {{ data.vanLimit }}</strong></div>
           <div><span>Trips</span><strong>{{ data.totals?.trips ?? 0 }}</strong></div>
@@ -71,7 +71,7 @@
       </template>
 
       <!-- Company -->
-      <div v-else-if="tab === 'company'" class="list" v-bng-ui-nav-scroll>
+      <div v-else-if="tab === 'company' && data.company?.hq" class="list" v-bng-ui-nav-scroll>
         <div class="card">
           <div class="card-top">
             <h2>Level {{ company.level.level }}</h2>
@@ -118,7 +118,7 @@
       </div>
 
       <!-- Upgrades -->
-      <div v-else-if="tab === 'upgrades'" class="list" v-bng-ui-nav-scroll>
+      <div v-else-if="tab === 'upgrades' && data.company?.hq" class="list" v-bng-ui-nav-scroll>
         <div class="rate">{{ company.xp }} company XP to spend</div>
         <template v-for="group in upgradeGroups" :key="group.name">
           <div class="group-title">{{ group.name }}</div>
@@ -136,6 +136,48 @@
           </div>
         </template>
       </div>
+
+      <!-- Finances -->
+      <template v-else-if="tab === 'finances'">
+        <div v-if="hasDeliveries" class="list" v-bng-ui-nav-scroll>
+          <div class="card">
+            <div class="card-top">
+              <h2>Last 24 h</h2>
+              <strong>{{ money(historyTotals.net) }}</strong>
+            </div>
+            <div class="row"><span>Revenue</span><span>{{ money(historyTotals.revenue) }}</span></div>
+            <div class="row"><span>Energy</span><span>{{ money(historyTotals.energy) }}</span></div>
+            <div class="row"><span>Wear</span><span>{{ money(historyTotals.wear) }}</span></div>
+            <div class="row"><span>Commission</span><span>{{ money(historyTotals.commission) }}</span></div>
+            <div class="row"><span>Driver wages</span><span>{{ money(historyTotals.wages) }}</span></div>
+            <div class="row"><span>Vehicles bought/sold</span><span>{{ money(historyTotals.purchases) }}</span></div>
+            <div class="row"><strong>Net</strong><strong>{{ money(historyTotals.net) }}</strong></div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <h2>Hourly net</h2>
+            </div>
+            <div class="chart-container" :class="{ 'has-neg': hasNegative }">
+              <div v-for="bucket in history" :key="bucket.hour" class="chart-col" :title="chartTooltip(bucket)">
+                <div class="chart-pos">
+                  <div class="chart-bar positive" :style="{ height: barHeight(bucket.net, true) }"></div>
+                </div>
+                <div class="chart-axis"></div>
+                <div v-if="hasNegative" class="chart-neg">
+                  <div class="chart-bar negative" :style="{ height: barHeight(bucket.net, false) }"></div>
+                </div>
+                <span class="chart-label">{{ formatHour(bucket.hour) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="empty-state">
+          <div class="empty-title">No deliveries yet</div>
+          <p>No deliveries yet.</p>
+        </div>
+      </template>
     </template>
   </div>
 </template>
@@ -147,17 +189,26 @@ import { vBngUiNavScroll } from "@/common/directives"
 
 const refreshMs = 2000
 
-const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, logisticsLevel: 0, nextVanUnlock: null, company: null, totals: null, netPerVanHour: null, vans: [] })
+const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, logisticsLevel: 0, nextVanUnlock: null, company: null, totals: null, netPerVanHour: null, vans: [], history: [], historyTotals: null })
 const loaded = ref(false)
 const busy = ref(false)
 const message = ref("")
 const messageIsError = ref(false)
 const tab = ref("fleet")
-const tabs = [
-  { id: "fleet", label: "Fleet" },
-  { id: "company", label: "Company" },
-  { id: "upgrades", label: "Upgrades" },
-]
+const tabs = computed(() => {
+  if (data.company?.hq) {
+    return [
+      { id: "fleet", label: "Fleet" },
+      { id: "company", label: "Company" },
+      { id: "upgrades", label: "Upgrades" },
+      { id: "finances", label: "Finances" },
+    ]
+  }
+  return [
+    { id: "fleet", label: "Fleet" },
+    { id: "finances", label: "Finances" },
+  ]
+})
 // A sale or a firing needs a second tap on the same button within confirmMs.
 const confirmId = ref(null)
 const confirmMs = 4000
@@ -170,6 +221,47 @@ const vans = computed(() => asList(data.vans))
 const atLimit = computed(() => vans.value.length >= data.vanLimit)
 const company = computed(() => data.company || {})
 const drivers = computed(() => asList(data.company?.drivers))
+const history = computed(() => asList(data.history))
+const historyTotals = computed(() => data.historyTotals || {
+  trips: 0,
+  revenue: 0,
+  energy: 0,
+  wear: 0,
+  commission: 0,
+  wages: 0,
+  purchases: 0,
+  net: 0,
+})
+const hasDeliveries = computed(() => history.value.length > 0 && (data.historyTotals?.trips ?? 0) > 0)
+const hasNegative = computed(() => history.value.some((b) => (Number(b.net) || 0) < 0))
+
+const maxNet = computed(() => {
+  let m = 0
+  for (const b of history.value) {
+    const val = Math.abs(Number(b.net) || 0)
+    if (val > m) m = val
+  }
+  return m > 0 ? m : 1
+})
+
+function barHeight(net, isPositive) {
+  const val = Number(net) || 0
+  if (isPositive) {
+    if (val <= 0) return "0%"
+    return Math.max(5, Math.round((val / maxNet.value) * 100)) + "%"
+  } else {
+    if (val >= 0) return "0%"
+    return Math.max(5, Math.round((-val / maxNet.value) * 100)) + "%"
+  }
+}
+
+function formatHour(hour) {
+  return `${new Date((Number(hour) || 0) * 1000).getHours()}h`
+}
+
+function chartTooltip(bucket) {
+  return `${formatHour(bucket.hour)}: ${money(bucket.net)}`
+}
 const levelProgress = computed(() => {
   const level = data.company?.level
   if (!level || !level.next) return 100
@@ -206,6 +298,11 @@ function apply(payload) {
   data.totals = payload.totals ?? null
   data.netPerVanHour = payload.netPerVanHour ?? null
   data.vans = payload.vans ?? []
+  data.history = payload.history ?? []
+  data.historyTotals = payload.historyTotals ?? null
+  if (!data.company?.hq && tab.value !== "fleet" && tab.value !== "finances") {
+    tab.value = "fleet"
+  }
   loaded.value = true
 }
 
@@ -544,5 +641,68 @@ onUnmounted(() => {
 .empty-title {
   font-size: 1.12rem;
   font-weight: 700;
+}
+
+.chart-container {
+  display: flex;
+  gap: 4px;
+  min-height: 100px;
+  padding: 6px 0 2px;
+  overflow-x: auto;
+  align-items: stretch;
+
+  &:not(.has-neg) .chart-pos {
+    height: 75px;
+  }
+}
+
+.chart-col {
+  flex: 1 0 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+
+.chart-pos {
+  height: 55px;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.chart-axis {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.chart-neg {
+  height: 35px;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.chart-bar {
+  width: 8px;
+  border-radius: 2px;
+
+  &.positive {
+    background: #22c55e;
+  }
+
+  &.negative {
+    background: #ef4444;
+  }
+}
+
+.chart-label {
+  margin-top: 4px;
+  font-size: 0.68rem;
+  color: #cfc6bb;
+  white-space: nowrap;
 }
 </style>
