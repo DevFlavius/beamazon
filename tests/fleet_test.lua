@@ -281,7 +281,8 @@ local elements = {}
 hq.onGetRawPoiListForLevel('west_coast_usa', elements)
 check(#elements == 0, 'HQ: no marker on a level without a spot')
 hq.onGetRawPoiListForLevel('rls_west_coast', elements)
-local elem = elements[1]
+local elem
+for _, e in ipairs(elements) do if e.id == 'beamazonHqWestCoast' then elem = e break end end
 check(elem and elem.data.type == 'beamazonHq' and objects.beamazonHqWestCoast_area.class == 'BeamNGGameplayArea'
   and objects.beamazonHqWestCoast_icon.class == 'BeamNGPointOfInterest' and elem.markerInfo.walkingMarker.doors[1][2] == 'beamazonHqWestCoast_icon',
   'HQ: marker and its area and icon objects on rls_west_coast')
@@ -292,7 +293,7 @@ check(desk and desk.class == 'TSStatic' and desk.shapeName:find('s_office_desk')
 check(laptop and laptop.shapeName:find('s_laptop_ON') and math.abs(laptop.pos.z - (desk.pos.z + 0.78)) < 0.001, 'HQ: laptop on the desk')
 local again = {}
 hq.onGetRawPoiListForLevel('rls_west_coast', again)
-check(#again == 1, 'HQ: a second POI build reuses the objects')
+check(#again == 2, 'HQ: a second POI build reuses the objects')
 local function card() local list = {} hq.onActivityAcceptGatherData({elem.data}, list) return list[1] end
 logisticsLevel = 19; money = 1e6
 local c = card()

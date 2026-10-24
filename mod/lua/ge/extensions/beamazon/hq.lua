@@ -9,10 +9,14 @@ local balance = require('beamazon/balance')
 
 local poiType = 'beamazonHq'
 
--- One HQ spot per level. pos is where the player stands to use it; the icon floats above it.
-local sites = {
+-- Spots on each level: HQ and branches. pos is where the player stands to use it; the icon floats above it.
 -- desk is the office desk in front of the spot: offset from pos in metres and yaw in degrees (turn it if it clips a wall).
-  rls_west_coast = {id = 'beamazonHqWestCoast', name = 'Beamazon HQ', pos = {-126.627, 36.444, 122.440}, desk = {offset = {0, 1.3, 0}, yaw = 180}},
+-- The Dockyards position is the Spearleaf Logistics parkingA spot (levels/west_coast_usa/facilities/delivery/warehouses.sites.json) and is still to be confirmed in game.
+local sites = {
+  rls_west_coast = {
+    {id = 'beamazonHqWestCoast', kind = 'hq', name = 'Beamazon HQ', pos = {-126.627, 36.444, 122.440}, desk = {offset = {0, 1.3, 0}, yaw = 180}},
+    {id = 'beamazonDockyardsWestCoast', kind = 'branch', branch = 'dockyards', name = 'Beamazon Dockyards', pos = {469.726, 1597.877, 74.664}, desk = {offset = {0, 1.3, 0}, yaw = 180}},
+  },
 }
 
 -- Game shapes (art_shapes.zip, the same the RLS garages use): an office desk with a laptop on top.
@@ -71,38 +75,81 @@ local function ensureObjects(site)
   return pos
 end
 
+local function getSitesForCurrentLevel()
+  return sites[getCurrentLevelIdentifier() or ''] or {}
+end
+
+local function currentHqSite()
+  for _, site in ipairs(getSitesForCurrentLevel()) do
+    if site.kind == 'hq' then return site end
+  end
+  return nil
+end
+
 local function currentSite()
-  return sites[getCurrentLevelIdentifier() or '']
+  return currentHqSite()
+end
+
+local function findSiteOnThisMap(siteId)
+  for _, site in ipairs(getSitesForCurrentLevel()) do
+    if site.id == siteId then return site end
+  end
+  return nil
 end
 
 -- Sets the GPS route to the HQ of the loaded level; false when the level has none or there is no player vehicle.
 local function routeToHq()
-  local site = currentSite()
+  local site = currentHqSite()
   if not site or not freeroam_bigMapMode or not getPlayerVehicle(0) then return false end
   freeroam_bigMapMode.setNavFocus(vec3(site.pos[1], site.pos[2], site.pos[3]))
   return true
 end
 
+-- Sets the GPS route to a specific spot by id on the loaded level; false when not found or there is no player vehicle.
+local function routeToSite(siteId)
+  local site = findSiteOnThisMap(siteId)
+  if not site or not freeroam_bigMapMode or not getPlayerVehicle(0) then return false end
+  freeroam_bigMapMode.setNavFocus(vec3(site.pos[1], site.pos[2], site.pos[3]))
+  return true
+end
+
+-- List of {id, kind, branch, name} spots on the loaded level.
+local function getSitesOnThisMap()
+  local list = {}
+  for _, site in ipairs(getSitesForCurrentLevel()) do
+    table.insert(list, {
+      id = site.id,
+      kind = site.kind,
+      branch = site.branch,
+      name = site.name,
+    })
+  end
+  return list
+end
+
 local function onGetRawPoiListForLevel(levelIdentifier, elements)
-  local site = sites[levelIdentifier]
-  if not site or not beamazon_adapter.isCareerActive() then return end
-  local areaName, iconName = objectNames(site)
-  local pos = ensureObjects(site)
-  table.insert(elements, {
-    id = site.id,
-    data = {type = poiType, siteId = site.id, name = site.name},
-    markerInfo = {
-      walkingMarker = {doors = {{areaName, iconName}}, icon = 'poi_laptop_round', pos = pos, radius = 6, iconLift = 0.2, iconOffsetHeight = 0.15},
-      bigmapMarker = {pos = pos, icon = 'poi_laptop_round', name = site.name, description = 'Found your delivery company here.', cardIcon = 'laptop'},
-    },
-  })
+  local spotList = sites[levelIdentifier]
+  if not spotList or not beamazon_adapter.isCareerActive() then return end
+  for _, site in ipairs(spotList) do
+    local areaName, iconName = objectNames(site)
+    local pos = ensureObjects(site)
+    local desc = site.kind == 'branch' and 'A Beamazon branch: more fleet slots.' or 'Found your delivery company here.'
+    table.insert(elements, {
+      id = site.id,
+      data = {type = poiType, siteId = site.id, name = site.name, kind = site.kind, branch = site.branch},
+      markerInfo = {
+        walkingMarker = {doors = {{areaName, iconName}}, icon = 'poi_laptop_round', pos = pos, radius = 6, iconLift = 0.2, iconOffsetHeight = 0.15},
+        bigmapMarker = {pos = pos, icon = 'poi_laptop_round', name = site.name, description = desc, cardIcon = 'laptop'},
+      },
+    })
+  end
 end
 
 local function money(amount)
   return '$' .. tostring(math.floor(amount)):reverse():gsub('(%d%d%d)', '%1,'):reverse():gsub('^,', '')
 end
 
--- The accept card for the HQ: buy it, or what the company has once it's owned.
+-- The accept card for the HQ or a branch: buy it, or what the company has once it's owned.
 local function buildCard(elem)
   local card = {
     icon = 'poi_laptop_round',
@@ -111,6 +158,47 @@ local function buildCard(elem)
     sorting = {type = elem.type, id = elem.siteId},
     buttonSoundClass = 'bng_hover_generic',
   }
+  if elem.kind == 'branch' then
+    local branchConfig = balance.branches and balance.branches[elem.branch]
+    local slots = branchConfig and branchConfig.slots or 0
+    if beamazon_fleetManager.ownsBranch(elem.branch) then
+      card.props = {
+        {icon = 'checkmark', keyLabel = 'Your branch'},
+        {icon = 'checkmark', keyLabel = 'Fleet slots', valueLabel = tostring(slots)},
+      }
+      card.buttonLabel = 'Open the phone'
+      card.buttonFun = function() beamazon_adapter.openPhone() end
+      return card
+    end
+
+    local price = branchConfig and branchConfig.price or 0
+    local companyLevel = branchConfig and branchConfig.companyLevel or 1
+    local currentLevel = beamazon_company and beamazon_company.getLevel().level or 1
+    card.props = {
+      {icon = 'checkmark', keyLabel = 'Price', valueLabel = money(price)},
+      {icon = 'checkmark', keyLabel = 'Company level', valueLabel = string.format('%d required (yours: %d)', companyLevel, currentLevel)},
+      {icon = 'checkmark', keyLabel = 'Fleet slots', valueLabel = tostring(slots)},
+    }
+    card.buttonLabel = 'Buy the branch'
+    if not beamazon_fleetManager.ownsHq() then
+      card.disabled = true
+      card.disableReason = 'Found the company at the Beamazon HQ first'
+    elseif currentLevel < companyLevel then
+      card.disabled = true
+      card.disableReason = string.format('Reach company level %d first', companyLevel)
+    elseif (beamazon_adapter.getMoney() or 0) < price then
+      card.disabled = true
+      card.disableReason = 'Not enough money'
+    end
+    card.buttonFun = function()
+      local ok = beamazon_fleetManager.buyBranch(elem.branch)
+      guihooks.trigger('toastrMsg', ok
+        and {type = 'success', title = 'Beamazon', msg = 'Branch opened: +' .. slots .. ' fleet slots.'}
+        or {type = 'warning', title = 'Beamazon', msg = 'Could not buy the branch.'})
+    end
+    return card
+  end
+
   if beamazon_fleetManager.ownsHq() then
     card.props = {
       {icon = 'checkmark', keyLabel = 'Your company headquarters'},
@@ -165,6 +253,8 @@ end
 M.buildCard = buildCard
 M.hasSite = function() return currentSite() ~= nil end
 M.routeToHq = routeToHq
+M.routeToSite = routeToSite
+M.getSitesOnThisMap = getSitesOnThisMap
 M.onGetRawPoiListForLevel = onGetRawPoiListForLevel
 M.onActivityAcceptGatherData = onActivityAcceptGatherData
 M.onBeamazonCareerActive = onBeamazonCareerActive
