@@ -123,11 +123,14 @@ end
 -- Accepts the current contract offer.
 local function accept()
   local s = state()
-  if not s or not s.offer then
+  if not s then
     return false, 'noOffer'
   end
   if s.active then
     return false, 'alreadyActive'
+  end
+  if not s.offer then
+    return false, 'noOffer'
   end
   local active = s.offer
   active.done = 0

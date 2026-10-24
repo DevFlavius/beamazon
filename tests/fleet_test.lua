@@ -840,6 +840,142 @@ check(rSite.ok and navTarget and math.abs(navTarget.x - 469.726) < 0.001, 'route
   check(rPhoneUp.ok and rPhoneUp.data.vans[1].upgrades[4].level >= 2, 'phone upgradeVehicle works and returns updated data')
 end)()
 
+-- 13. delivery contracts
+;(function()
+  local fm = beamazon_fleetManager
+  local contracts = beamazon_contracts
+  local balance = require('beamazon/balance')
+
+  -- Initial state: timer = 0, no offer, no active contract
+  local s = fm.getContractState()
+  s.timer = 0
+  s.offer = nil
+  s.active = nil
+  s.completed = 0
+  s.failed = 0
+
+  -- no offer before contractEverySeconds of fleet time
+  contracts.onFleetTime(balance.contractEverySeconds - 1)
+  check(s.offer == nil and s.timer == balance.contractEverySeconds - 1, 'no offer before contractEverySeconds of fleet time')
+
+  -- an offer appears after it
+  contracts.onFleetTime(1)
+  check(s.offer ~= nil and s.timer == 0, 'an offer appears after contractEverySeconds of fleet time')
+  check(s.offer.trips >= 3 and s.offer.bonus == s.offer.trips * balance.contractBonusPerTrip, 'offer trips and bonus calculated properly')
+  check(s.offer.penalty == math.floor(s.offer.bonus * balance.contractPenaltyShare), 'offer penalty calculated properly')
+
+  -- the offer expires after contractOfferSeconds
+  contracts.onFleetTime(balance.contractOfferSeconds)
+  check(s.offer == nil, 'the offer expires after contractOfferSeconds')
+
+  -- accept/decline reasons
+  local okAcc, whyAcc = contracts.accept()
+  check(okAcc == false and whyAcc == 'noOffer', 'accept without offer returns noOffer')
+  local okDec, whyDec = contracts.decline()
+  check(okDec == false and whyDec == 'noOffer', 'decline without offer returns noOffer')
+
+  -- roll an offer for decline test
+  local off = contracts.rollOffer()
+  check(off ~= nil and s.offer == off, 'rollOffer generates an offer')
+  check(contracts.decline() == true and s.offer == nil, 'decline clears the offer')
+
+  -- roll an offer for accept test
+  off = contracts.rollOffer()
+  check(contracts.accept() == true, 'accept accepts the offer')
+  check(s.offer == nil and s.active ~= nil, 'offer becomes active')
+  check(s.active.done == 0 and s.active.left == s.active.seconds, 'active has done = 0 and left = seconds')
+
+  -- alreadyActive reason when trying to accept while one is active
+  s.offer = off
+  local okAcc2, whyAcc2 = contracts.accept()
+  check(okAcc2 == false and whyAcc2 == 'alreadyActive', 'accept while active returns alreadyActive')
+  s.offer = nil
+
+  -- accept then trips completes it: money + bonus, completed = 1, history bonuses; company XP rises when company exists
+  local activeContract = s.active
+  local neededTrips = activeContract.trips
+  local bonus = activeContract.bonus
+  local moneyBefore = money
+  local compXpBefore = (fm.getCompany() and fm.getCompany().xpEarned) or 0
+  local currentB = fm.getHistory()[#fm.getHistory()]
+  local bonusesBefore = currentB and currentB.bonuses or 0
+
+  for _ = 1, neededTrips - 1 do
+    contracts.onTrip(fm.getVans()[1])
+    check(s.active ~= nil and s.active.done < neededTrips, 'contract still active before all trips done')
+  end
+  contracts.onTrip(fm.getVans()[1])
+  check(s.active == nil, 'contract completed and active cleared')
+  check(s.completed == 1, 'completed count is 1')
+  check(money == moneyBefore + bonus, 'bonus money added: $' .. bonus)
+  check(ledger[#ledger][2]:find('contract with') ~= nil, 'contract ledger entry recorded')
+  local compXpAfter = (fm.getCompany() and fm.getCompany().xpEarned) or 0
+  check(math.abs((compXpAfter - compXpBefore) - bonus * balance.contractXpPerDollar) < 0.01,
+    'company XP rises when company exists: +' .. (bonus * balance.contractXpPerDollar) .. ' XP')
+  currentB = fm.getHistory()[#fm.getHistory()]
+  check(currentB.bonuses == bonusesBefore + bonus, 'history bucket bonuses recorded bonus')
+
+  -- a missed contract charges the penalty and counts failed
+  off = contracts.rollOffer()
+  check(contracts.accept() == true, 'accept second contract')
+  local penalty = s.active.penalty
+  local moneyBeforeFail = money
+  local bonusesBeforeFail = currentB.bonuses
+  contracts.onFleetTime(s.active.seconds + 1)
+  check(s.active == nil and s.failed == 1, 'missed contract clears active and increments failed')
+  check(money == moneyBeforeFail - penalty, 'penalty charged from balance: -$' .. penalty)
+  currentB = fm.getHistory()[#fm.getHistory()]
+  check(currentB.bonuses == bonusesBeforeFail - penalty, 'history bucket bonuses recorded -penalty')
+
+  -- state survives save/reload
+  off = contracts.rollOffer()
+  contracts.accept()
+  s.active.done = 2
+  s.timer = 123
+  save('/saves/prof/autosave1')
+  active = false; extensions.hook('onOverhaulActive', false)
+  check(fm.getContractState() == nil, 'career off: contract state is nil')
+  active = true; extensions.hook('onOverhaulActive', true, false)
+  local reloadedState = fm.getContractState()
+  check(reloadedState ~= nil, 'contract state reloaded')
+  check(reloadedState.completed == 1 and reloadedState.failed == 1 and reloadedState.timer == 123, 'completed, failed, timer survive save/reload')
+  check(reloadedState.active ~= nil and reloadedState.active.done == 2, 'active contract with progress survives save/reload')
+
+  -- phone getData().contracts and acceptContract work
+  local pd = beamazon_phoneApp.getData()
+  check(type(pd.contracts) == 'table', 'phone getData().contracts exists')
+  check(pd.contracts.active ~= nil and pd.contracts.active.done == 2, 'phone view has active contract with done=2')
+  check(pd.contracts.completed == 1 and pd.contracts.failed == 1, 'phone view has completed and failed')
+
+  -- fail the active one so we can test phone acceptContract
+  contracts.onFleetTime(reloadedState.active.seconds + 1)
+  check(reloadedState.active == nil, 'active contract expired')
+
+  -- test phone view when neither: nextOfferMinutes
+  reloadedState.timer = 600
+  pd = beamazon_phoneApp.getData()
+  check(pd.contracts.nextOfferMinutes == math.ceil((balance.contractEverySeconds - 600) / 60), 'phone view nextOfferMinutes when neither')
+
+  -- roll an offer and test phone acceptContract
+  contracts.rollOffer()
+  pd = beamazon_phoneApp.getData()
+  check(pd.contracts.offer ~= nil, 'phone view has offer')
+  check(pd.contracts.offer.hours >= balance.contractHoursMin, 'phone view offer has hours')
+  local rAcc = beamazon_phoneApp.acceptContract()
+  check(rAcc.ok and rAcc.data.contracts.active ~= nil, 'phone acceptContract works and returns updated active contract')
+  local rAccFail = beamazon_phoneApp.acceptContract()
+  check(rAccFail.ok == false and rAccFail.reason == 'alreadyActive', 'phone acceptContract while active fails with alreadyActive')
+
+  -- complete it and test phone declineContract
+  for _ = 1, reloadedState.active.trips do contracts.onTrip(fm.getVans()[1]) end
+  check(reloadedState.active == nil, 'active completed')
+  contracts.rollOffer()
+  local rDec = beamazon_phoneApp.declineContract()
+  check(rDec.ok and rDec.data.contracts.offer == nil, 'phone declineContract works and clears offer')
+  local rDecFail = beamazon_phoneApp.declineContract()
+  check(rDecFail.ok == false and rDecFail.reason == 'noOffer', 'phone declineContract without offer fails with noOffer')
+end)()
+
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')
