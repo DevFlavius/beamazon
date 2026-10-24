@@ -70,6 +70,18 @@ No save com pelo menos um veículo na frota.
 
 - **Esperado:** o valor da melhoria é cobrado como um lançamento no extrato bancário do RLS (`Beamazon: <veículo> Route Computer 1`), o nível aparece no cartão da van, a melhoria e o valor gasto sobrevivem ao save e recarregamento, e o valor de venda do veículo aumenta em metade do valor gasto em melhorias. Nenhuma linha `E` no log.
 
+### 22. Contratos de entrega
+
+No save com pelo menos 1 veículo na frota.
+
+1. Acelere a frota no console: `beamazon_fleetSim.setSpeed(60)`. Uma oferta de contrato surge em cerca de 1 min de jogo (3.600 s de frota), com aviso no log e notificação toast.
+2. Abra o app Beamazon no celular: o cartão de oferta aparece no topo da aba Frota com cliente, viagens, prazo em horas, bônus, penalidade e tempo para expirar.
+3. Toque em "Accept" para aceitar o contrato. O cartão passa a exibir o progresso das entregas, o tempo restante e o bônus.
+4. Conclua as viagens com a frota trabalhando acelerada até atingir a meta. Em outro teste, deixe o tempo expirar para conferir a penalidade (com `setSpeed(60)` é rápido).
+5. Salve o jogo e recarregue (Ctrl+L), depois confira o estado pelo celular e pelo console.
+
+- **Esperado:** bônus pago como lançamento no extrato bancário do RLS (`Beamazon: contract with <cliente>`) e XP de empresa adicionado quando houver sede; penalidade cobrada no extrato quando o contrato for perdido (`Beamazon: missed contract with <cliente>`); o cartão mostra o progresso das viagens e o tempo restante; a linha "Contracts" reflete os bônus/penalidades na aba Finances; e o estado sobrevive ao save e recarregamento. Nenhuma linha `E` no log.
+
 ## Não crítico (acumula)
 
 ### 15. Celular: abas Frota / Empresa / Melhorias
