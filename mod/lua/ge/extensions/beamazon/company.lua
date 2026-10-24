@@ -49,18 +49,6 @@ local function setSetting(name, value)
   return true
 end
 
--- True when the Fleet Manager upgrade is bought and autoService setting is true.
-local function hasAutoService()
-  local c = company()
-  return c ~= nil and getEffect('autoService') >= 1 and c.settings.autoService == true
-end
-
--- True when the Sales Team upgrade is bought and autoContracts setting is true.
-local function hasAutoContracts()
-  local c = company()
-  return c ~= nil and getEffect('autoContracts') >= 1 and c.settings.autoContracts == true
-end
-
 local function getUpgradeLevel(id)
   local c = company()
   return c and tonumber(c.upgrades[id]) or 0
@@ -75,6 +63,18 @@ local function getEffect(name)
     if node and node.effect[name] then total = total + node.effect[name] * level end
   end
   return total
+end
+
+-- True when the Fleet Manager upgrade is bought and autoService setting is true.
+local function hasAutoService()
+  local c = company()
+  return c ~= nil and getEffect('autoService') >= 1 and c.settings.autoService == true
+end
+
+-- True when the Sales Team upgrade is bought and autoContracts setting is true.
+local function hasAutoContracts()
+  local c = company()
+  return c ~= nil and getEffect('autoContracts') >= 1 and c.settings.autoContracts == true
 end
 
 -- {level, xpEarned, current, next}: the level from the total XP ever earned; next is nil at the top.

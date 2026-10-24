@@ -20,6 +20,9 @@ local fleet
 -- Real seconds the player was away since the loaded save; fleetSim takes them once.
 local offlineSeconds = 0
 
+-- Accumulated fleet seconds for charging the fleet manager wage (not saved).
+local managerSeconds = 0
+
 -- Trip profits and XP not yet credited. XP goes out in whole points; the fraction waits for the next payout.
 local pending = {net = 0, trips = 0, xp = 0}
 local payoutTimer = 0
@@ -177,6 +180,7 @@ local function setLoaded(active)
   pending = {net = 0, trips = 0, xp = 0}
   payoutTimer = 0
   offlineSeconds = 0
+  managerSeconds = 0
   if active then
     fleet = loadFleet()
     -- Saved with the fleet, so reloading the save doesn't draw a new price.
@@ -232,6 +236,23 @@ local function addWorkTime(dt, workingTrucks, workingVans)
   local vans = workingVans or countKind('van')
   fleet.totals.vanSeconds = fleet.totals.vanSeconds + dt * vans
   fleet.totals.truckSeconds = fleet.totals.truckSeconds + dt * (workingTrucks or 0)
+  if beamazon_company and beamazon_company.hasAutoService() then
+    managerSeconds = managerSeconds + dt
+    while managerSeconds >= 3600 do
+      managerSeconds = managerSeconds - 3600
+      local wage = balance.managerWagePerHour or 400
+      if not beamazon_adapter.pay(wage, 'Beamazon: fleet manager wage') then
+        pending.net = pending.net - wage
+      end
+      fleet.totals.costs = fleet.totals.costs + wage
+      fleet.totals.net = fleet.totals.net - wage
+      local bucket = currentBucket()
+      if bucket then
+        bucket.wages = bucket.wages + wage
+        bucket.net = bucket.net - wage
+      end
+    end
+  end
   if beamazon_contracts then
     beamazon_contracts.onFleetTime(dt)
   end
@@ -558,7 +579,7 @@ local function buyHq()
     log('W', logTag, string.format('buyHq: not enough money ($%d)', balance.hqPrice))
     return false, 'notEnoughMoney'
   end
-  fleet.company = {hq = true, foundedAt = os.time(), xp = 0, xpEarned = 0, upgrades = {}, drivers = {}, nextDriverId = 1, branches = {}}
+  fleet.company = {hq = true, foundedAt = os.time(), xp = 0, xpEarned = 0, upgrades = {}, drivers = {}, nextDriverId = 1, branches = {}, settings = {autoService = true, autoContracts = true}}
   recordPurchase(balance.hqPrice)
   log('I', logTag, string.format('buyHq: company founded for $%d (van limit: %d)', balance.hqPrice, getVanLimit()))
   return true
@@ -618,6 +639,67 @@ local function onFleetTick(dt)
   if payoutTimer < payoutSeconds then return end
   payoutTimer = 0
   payOut()
+end
+
+-- Cost in $ to service a vehicle to 100% condition.
+local function serviceCost(van)
+  local condition = van.condition or 1
+  if condition >= 0.999 then return 0 end
+  local effect = beamazon_company and beamazon_company.getEffect('serviceCost') or 0
+  local mult = van.kind == 'truck' and 2 or 1
+  local cost = math.ceil((1 - condition) * 100 * balance.serviceCostPerPoint * mult * math.max(0, 1 + effect))
+  return math.max(0, cost)
+end
+
+-- True and the cost charged, or false and the reason: 'careerInactive', 'noVan', 'alreadyNew' or 'notEnoughMoney'.
+local function serviceVan(id)
+  if not ensureLoaded() then
+    log('W', logTag, 'serviceVan: career is not active (RLS Career Overhaul is required)')
+    return false, 'careerInactive'
+  end
+  local van = findVan(id)
+  if not van then
+    log('W', logTag, 'serviceVan: no van with id ' .. tostring(id))
+    return false, 'noVan'
+  end
+  if (van.condition or 1) >= 0.999 then
+    return false, 'alreadyNew'
+  end
+  local cost = serviceCost(van)
+  if not beamazon_adapter.pay(cost, 'Beamazon: ' .. van.name .. ' service') then
+    log('W', logTag, string.format('serviceVan: not enough money for %s service ($%d)', van.name, cost))
+    return false, 'notEnoughMoney'
+  end
+  van.condition = 1
+  recordRepair(cost)
+  log('I', logTag, string.format('serviceVan: %s serviced for $%d', van.name, cost))
+  return true, cost
+end
+
+-- Services every vehicle below 0.999 condition that can be paid, worst condition first.
+-- Stops at the first failed payment; returns count, total.
+local function serviceAll()
+  if not ensureLoaded() then return 0, 0 end
+  local candidates = {}
+  for _, van in ipairs(fleet.vans) do
+    if (van.condition or 1) < 0.999 then
+      table.insert(candidates, van)
+    end
+  end
+  table.sort(candidates, function(a, b)
+    return (a.condition or 1) < (b.condition or 1)
+  end)
+  local count, total = 0, 0
+  for _, van in ipairs(candidates) do
+    local ok, cost = serviceVan(van.id)
+    if ok then
+      count = count + 1
+      total = total + cost
+    else
+      break
+    end
+  end
+  return count, total
 end
 
 -- Called by fleetSim when a vehicle finishes a trip: keeps the books; the money goes out in payOut.
@@ -681,67 +763,12 @@ local function recordTrip(van, result, driver)
   if beamazon_contracts then
     beamazon_contracts.onTrip(van)
   end
-end
-
--- Cost in $ to service a vehicle to 100% condition.
-local function serviceCost(van)
-  local condition = van.condition or 1
-  if condition >= 0.999 then return 0 end
-  local effect = beamazon_company and beamazon_company.getEffect('serviceCost') or 0
-  local mult = van.kind == 'truck' and 2 or 1
-  local cost = math.ceil((1 - condition) * 100 * balance.serviceCostPerPoint * mult * math.max(0, 1 + effect))
-  return math.max(0, cost)
-end
-
--- True and the cost charged, or false and the reason: 'careerInactive', 'noVan', 'alreadyNew' or 'notEnoughMoney'.
-local function serviceVan(id)
-  if not ensureLoaded() then
-    log('W', logTag, 'serviceVan: career is not active (RLS Career Overhaul is required)')
-    return false, 'careerInactive'
-  end
-  local van = findVan(id)
-  if not van then
-    log('W', logTag, 'serviceVan: no van with id ' .. tostring(id))
-    return false, 'noVan'
-  end
-  if (van.condition or 1) >= 0.999 then
-    return false, 'alreadyNew'
-  end
-  local cost = serviceCost(van)
-  if not beamazon_adapter.pay(cost, 'Beamazon: ' .. van.name .. ' service') then
-    log('W', logTag, string.format('serviceVan: not enough money for %s service ($%d)', van.name, cost))
-    return false, 'notEnoughMoney'
-  end
-  van.condition = 1
-  recordRepair(cost)
-  log('I', logTag, string.format('serviceVan: %s serviced for $%d', van.name, cost))
-  return true, cost
-end
-
--- Services every vehicle below 0.999 condition that can be paid, worst condition first.
--- Stops at the first failed payment; returns count, total.
-local function serviceAll()
-  if not ensureLoaded() then return 0, 0 end
-  local candidates = {}
-  for _, van in ipairs(fleet.vans) do
-    if (van.condition or 1) < 0.999 then
-      table.insert(candidates, van)
-    end
-  end
-  table.sort(candidates, function(a, b)
-    return (a.condition or 1) < (b.condition or 1)
-  end)
-  local count, total = 0, 0
-  for _, van in ipairs(candidates) do
-    local ok, cost = serviceVan(van.id)
+  if beamazon_company and beamazon_company.hasAutoService() and (van.condition or 1) < (balance.autoServiceBelow or 0.4) then
+    local ok = serviceVan(van.id)
     if ok then
-      count = count + 1
-      total = total + cost
-    else
-      break
+      log('I', logTag, string.format('fleet manager serviced %s', van.name))
     end
   end
-  return count, total
 end
 
 local function status()
