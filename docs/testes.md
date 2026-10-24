@@ -114,6 +114,22 @@ Vá até a sede no mapa (o ícone laranja).
 
 - **Esperado:** ao lado do ponto aparecem uma mesa de escritório e um notebook ligado em cima dela (os mesmos das garagens do RLS). Se a mesa atravessar uma parede ou ficar virada para o lado errado, diga para que lado: o ajuste é uma linha (`desk.offset` e `desk.yaw` em `hq.lua`). Nenhuma linha `E` no log.
 
+### 23. Automação: gerente e equipe de vendas
+
+Com a sede comprada, compre as melhorias Fleet Manager (aba Pessoas) e Sales Team (aba Operações) na aba Melhorias do app Beamazon.
+
+1. Acelere a frota (`beamazon_fleetSim.setSpeed(60)`) e observe o extrato bancário do RLS: a cada 1 hora de frota trabalhada, o salário do gerente de frota ($400) é cobrado (`Beamazon: fleet manager wage`).
+2. Force o desgaste de uma van para menos de 40% (`beamazon_fleetManager.getVans()[1].condition = 0.35`) e deixe-a concluir uma viagem: o gerente revisa o veículo automaticamente para 100%, cobra o valor do conserto no extrato (`Beamazon: <van> service`) e registra no log (`fleet manager serviced <van>`).
+3. Com a equipe de vendas ativa, novas ofertas de contrato são aceitas sozinhas imediatamente, disparando a notificação toast `Your sales team signed a contract with <cliente>.` e com bônus 10% maior por nível da equipe.
+4. Na aba Empresa do app Beamazon, observe o cartão "Automation" com os botões toggle "On"/"Off" para ligar/desligar o Gerente de Frota e a Equipe de Vendas. Desative o gerente e confira que a van desgastada não é revisada sozinha.
+
+- **Esperado:**
+  - O cartão "Automation" na aba Empresa exibe os toggles On/Off do gerente e da equipe de vendas quando as melhorias estiverem compradas (ou a dica "Unlock Fleet Manager and Sales Team in Upgrades." caso contrário).
+  - Com o gerente ativo, qualquer veículo desgastado abaixo de 40% é revisado automaticamente para 100% ao término da viagem, com custo lançado no extrato e aviso no log. Desativado, a revisão automática não acontece.
+  - Salário do gerente de $400/h cobrado a cada 3.600 s de tempo de frota, debitado do saldo e contabilizado em salários na aba Finances.
+  - Com a equipe de vendas ativa, contratos são aceitos imediatamente com bônus acrescido de 10% por nível e notificação dedicada; com o toggle em Off, a oferta permanece pendente para aceite manual.
+  - As preferências de automação sobrevivem ao save e recarregamento (Ctrl+L). Nenhuma linha `E` no log.
+
 ## Antes do release
 
 ### 7. Sem o RLS
