@@ -28,6 +28,7 @@ function jsonReadFile(p) return deepcopy(disk[p]) end
 
 -- fake RLS
 local money, xp, active, ledger = 0, 0, true, {}
+local logisticsLevel, marketIndex = 15, 1
 local function installRls()
   overhaul_career_career = {isActive = function() return active end}
   overhaul_career_economy_playerAttributes = {
@@ -39,6 +40,12 @@ local function installRls()
   overhaul_career_economy_payment = {pay = function(price, r)
     if price.money.amount > money then return false end
     overhaul_career_economy_playerAttributes.addAttributes({money = -price.money.amount}, r); return true end}
+  overhaul_career_progression_skills = {getBranchLevel = function(id)
+    if id ~= 'careerSkills-logistics' then return nil end return logisticsLevel end}
+  overhaul_career_market_valueCalculator = {
+    getVehicleListingPriceRange = function() return {tailLow = 0.70, normalLow = 0.88, normalHigh = 1.12, tailHigh = 1.30} end,
+    getVehicleBuyMarketMultiplier = function() return marketIndex end,
+  }
   overhaul_career_saveSystem = {
     getCurrentProfile = function() return 'prof', '/saves/prof/autosave1' end,
     getSaveWriter = function() return {exists = function() return true end, mkdir = function() end} end,
@@ -84,10 +91,25 @@ local function save(path)
   extensions.hook('onOverhaulSaveCurrentProfile', path, nil, overhaul_career_saveSystem.getSaveWriter())
 end
 local function totalTrips() local n = 0 for _, v in ipairs(beamazon_fleetManager.getVans()) do n = n + v.trips end return n end
-money = 1500
 extensions.hook('onOverhaulActive', true, false)
-check(beamazon_fleetManager.buyVan() == true and money == 500, 'buyVan charges $1000')
-check(beamazon_fleetManager.buyVan() == false and money == 500, 'buyVan refuses without money')
+local fm = beamazon_fleetManager
+local function limitAt(level) logisticsLevel = level return fm.getVanLimit() end
+check(limitAt(0) == 0 and limitAt(4) == 0 and limitAt(5) == 1 and limitAt(9) == 1 and limitAt(10) == 2 and limitAt(15) == 3 and limitAt(40) == 3,
+  'van limit by Logistics level: 0 below 5, then 1, 2, 3 at 5, 10, 15')
+logisticsLevel = 4
+check(fm.getNextVanUnlock().level == 5 and fm.buyVan() == false, 'level 4: no van, next unlock at level 5')
+logisticsLevel = 12
+check(fm.getNextVanUnlock().level == 15, 'level 12: next unlock at level 15')
+logisticsLevel = 15
+check(fm.getNextVanUnlock() == nil, 'level 15: no personal unlock left')
+local price = fm.getVanPrice()
+check(price >= 7500 * 0.70 and price <= 7500 * 1.30 and price == math.floor(price), 'van price near $7500: $' .. price)
+marketIndex = 1.2
+check(math.abs(fm.getVanPrice() - price * 1.2) <= 1, 'van price follows the RLS vehicle market')
+marketIndex = 1
+money = price + 500
+check(fm.buyVan() == true and money == 500, 'buyVan charges the offer price $' .. price)
+check(fm.buyVan() == false and money == 500, 'buyVan refuses without money')
 money = 1000000
 check(beamazon_fleetManager.buyVan() == true, 'second van')
 local base = money
@@ -115,11 +137,13 @@ check(perHour and math.abs(perHour - totals.timedNet / (totals.vanSeconds / 3600
 -- 3. save and reload
 check(disk['/saves/prof/autosave1/career/beamazon.json'].savedAt == now, 'saved to <savePath>/career/beamazon.json with savedAt')
 local before = deepcopy(vans)
+local priceBeforeReload = beamazon_fleetManager.getVanPrice()
 active = false; extensions.hook('onOverhaulActive', false)
 check(#beamazon_fleetManager.getVans() == 0, 'career off: fleet cleared')
 beamazon_fleetSim.onBeamazonSimStep(10)
 active = true; extensions.hook('onOverhaulActive', true, false)
 local after = beamazon_fleetManager.getVans()
+check(beamazon_fleetManager.getVanPrice() == priceBeforeReload, 'reload keeps the van offer')
 check(#after == 2 and after[1].trips == before[1].trips and after[1].tripElapsed == before[1].tripElapsed, 'reload keeps vans and trip progress')
 check(beamazon_fleetManager.buyVan() and beamazon_fleetManager.getVans()[3].id == 3, 'ids continue after reload')
 
@@ -159,7 +183,7 @@ check(gained <= 3, 'clock moved back: no offline progress')
 
 -- 6. phone app
 local d = beamazon_phoneApp.getData()
-check(d.active and #d.vans == 3 and d.vanPrice == 1000 and d.totals.trips > 0 and d.netPerVanHour > 0, 'phone data: vans, price, totals and rate')
+check(d.active and #d.vans == 3 and d.vanPrice == beamazon_fleetManager.getVanPrice() and d.logisticsLevel == 15 and d.totals.trips > 0 and d.netPerVanHour > 0, 'phone data: vans, price, totals and rate')
 check(d.vans[1].progress >= 0 and d.vans[1].progress <= 1 and type(d.vans[1].name) == 'string', 'phone data: van rows')
 check(d.vanLimit == 3, 'phone data: van limit')
 money = 5000
@@ -168,14 +192,28 @@ check(ok == false and why == 'vanLimit' and money == 5000 and #beamazon_fleetMan
 local r = beamazon_phoneApp.buyVan()
 check(r.ok == false and r.reason == 'vanLimit' and #r.data.vans == 3, 'phone buy at the limit: reason, no van')
 local balance = require('beamazon/balance')
-balance.personalVanLimit = 10
+table.insert(balance.personalVanUnlocks, {level = 15, vans = 10})
 money = 0
 r = beamazon_phoneApp.buyVan()
 check(r.ok == false and r.reason == 'notEnoughMoney' and #r.data.vans == 3, 'phone buy without money: reason, no van')
-money = 5000
+local p = beamazon_fleetManager.getVanPrice()
+money = p
 r = beamazon_phoneApp.buyVan()
-check(r.ok and #r.data.vans == 4 and money == 4000, 'phone buy adds a van and charges')
-balance.personalVanLimit = 3
+check(r.ok and #r.data.vans == 4 and money == 0, 'phone buy adds a van and charges $' .. p)
+-- Offers drawn like an RLS dealer listing: almost all within 12% of the average, a few in the tails.
+balance.personalVanUnlocks[#balance.personalVanUnlocks].vans = 1000
+money = 1e9
+local low, high, inBand, sum, n = math.huge, 0, 0, 0, 300
+quiet = true
+for _ = 1, n do
+  local before = money; beamazon_fleetManager.buyVan(); local paid = before - money
+  low, high, sum = math.min(low, paid), math.max(high, paid), sum + paid
+  if paid >= 7500 * 0.88 - 1 and paid <= 7500 * 1.12 + 1 then inBand = inBand + 1 end
+end
+quiet = false
+check(low >= 7500 * 0.70 and high <= 7500 * 1.30 and inBand >= n * 0.95 and math.abs(sum / n - 7500) < 300,
+  string.format('%d offers: $%d to $%d, average $%d, %d within 12%%', n, low, high, math.floor(sum / n), inBand))
+table.remove(balance.personalVanUnlocks)
 active = false; extensions.hook('onOverhaulActive', false)
 check(beamazon_phoneApp.getData().active == false and beamazon_phoneApp.buyVan().reason == 'careerInactive', 'phone without career')
 print('all checks passed')

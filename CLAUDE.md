@@ -81,6 +81,8 @@ Fase 2, peças que não dependem de balanceamento (2026-10-24, testadas só no R
 
 Fase 3, primeira versão (2026-10-24, compilada e testada só fora do jogo): app "Beamazon" no celular do RLS, instalado pela App Store. Mostra a frota (vans, entregas, lucro), cada van com o progresso da viagem, e tem o botão de comprar van. Lua em `phoneApp.lua`, tela em `mod/ui/ui-vue/mods/beamazon/PhoneBeamazon.vue`.
 
+Balanceamento decidido em 2026-10-24: as vans de pessoa física são liberadas pelo nível de Logística do RLS (5, 10 e 15 dão 1, 2 e 3 vans; o 20 libera a empresa) e a van custa em média $7.500, com o sorteio de preço das concessionárias do RLS. Ideias da empresa (caminhão com motorista, funcionários, sedes em pontos do mapa) no roadmap em `docs/plano.md`.
+
 Todos os números de balanceamento ficam em `mod/lua/ge/extensions/beamazon/balance.lua`. São provisórios até os irmãos decidirem.
 
 Teste da lógica sem o jogo: `cd tests && npm install && npm test` roda os módulos contra um RLS simulado (Lua em JavaScript, `fengari`). Rode depois de cada mudança em `mod/`. Ele não substitui o teste em jogo nem mede balanceamento (a fórmula de pagamento ali é uma cópia, sem a economia viva do RLS).

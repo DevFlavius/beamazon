@@ -23,9 +23,11 @@
       <div v-if="typeof data.netPerVanHour === 'number'" class="rate">{{ money(data.netPerVanHour) }} profit per van-hour</div>
 
       <button class="buy-button" type="button" :disabled="buying || atLimit" @click="buyVan">
-        <template v-if="atLimit">Van limit reached</template>
+        <template v-if="atLimit && data.nextVanUnlock">Logistics level {{ data.nextVanUnlock.level }} unlocks a van</template>
+        <template v-else-if="atLimit">Van limit reached</template>
         <template v-else>Buy a van · {{ money(data.vanPrice) }}</template>
       </button>
+      <div v-if="atLimit && data.nextVanUnlock" class="rate">Your Logistics level: {{ data.logisticsLevel }}</div>
       <div v-if="message" class="message" :class="{ error: messageIsError }">{{ message }}</div>
 
       <div v-if="vans.length" class="van-list" v-bng-ui-nav-scroll>
@@ -45,7 +47,7 @@
 
       <div v-else class="empty-state">
         <div class="empty-title">No vans yet</div>
-        <p>Buy your first van and it starts delivering on its own.</p>
+        <p>Buy your first van and it starts delivering on its own. Vans unlock with your Logistics skill.</p>
       </div>
     </template>
   </div>
@@ -58,7 +60,7 @@ import { vBngUiNavScroll } from "@/common/directives"
 
 const refreshMs = 2000
 
-const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, totals: null, netPerVanHour: null, vans: [] })
+const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, logisticsLevel: 0, nextVanUnlock: null, totals: null, netPerVanHour: null, vans: [] })
 const loaded = ref(false)
 const buying = ref(false)
 const message = ref("")
@@ -67,7 +69,7 @@ let timer = null
 
 // An empty Lua table arrives as {} instead of [].
 const vans = computed(() => (Array.isArray(data.vans) ? data.vans : Object.values(data.vans || {})))
-const atLimit = computed(() => data.vanLimit > 0 && vans.value.length >= data.vanLimit)
+const atLimit = computed(() => vans.value.length >= data.vanLimit)
 
 const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" })
 function money(value) {
@@ -79,6 +81,8 @@ function apply(payload) {
   data.active = payload.active === true
   data.vanPrice = payload.vanPrice ?? 0
   data.vanLimit = payload.vanLimit ?? 0
+  data.logisticsLevel = payload.logisticsLevel ?? 0
+  data.nextVanUnlock = payload.nextVanUnlock ?? null
   data.totals = payload.totals ?? null
   data.netPerVanHour = payload.netPerVanHour ?? null
   data.vans = payload.vans ?? []

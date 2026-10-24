@@ -3,8 +3,6 @@
 
 local M = {}
 
-local balance = require('beamazon/balance')
-
 local function vanRow(van)
   local row = {
     id = van.id,
@@ -34,8 +32,10 @@ local function getData()
   end
   return {
     active = true,
-    vanPrice = balance.vanPrice,
+    vanPrice = beamazon_fleetManager.getVanPrice(),
     vanLimit = beamazon_fleetManager.getVanLimit(),
+    logisticsLevel = beamazon_adapter.getLogisticsLevel(),
+    nextVanUnlock = beamazon_fleetManager.getNextVanUnlock(),
     totals = beamazon_fleetManager.getTotals(),
     netPerVanHour = beamazon_fleetManager.getNetPerVanHour(),
     vans = vans,

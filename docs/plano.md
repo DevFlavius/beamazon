@@ -92,7 +92,7 @@ A frota é uma empresa que evolui, no modelo do Tuning Shop do RLS (conta e XP p
 
 Decidido pelo Flavio em 2026-10-24 (nota de voz):
 
-- **Pessoa física:** até 3 vans, sem empresa. Feito (`balance.personalVanLimit`).
+- **Pessoa física:** até 3 vans, sem empresa. Feito; desde a nota abaixo, liberadas pelo nível de Logística.
 - **Empresa:** para passar de 3 vans, o jogador abre uma empresa. O nível dela mistura duas coisas: **XP próprio da empresa**, ganho pelas entregas da frota, e uma **árvore de upgrades** no modelo das empresas do RLS (o RLS lê as árvores de `gameplay/overhaul/business/skillTrees/*.json`, então o addon pode trazer a sua). Cada nível sobe o limite de vans e a eficiência das entregas, e talvez o pagamento. Há muitos níveis, então cada um libera pouco (exemplo: +2 vans; nível 1 = 10 vans).
 - **XP de Logística do jogador:** a frota dá muito pouco, de propósito (`balance.fleetXpShare`, 2% do XP que um motorista ganharia; provisório). O jogador não pode subir de nível parado.
 - **Filial:** um lugar no mapa, comprado com garagens e vagas. Ela soma vagas para vans.
@@ -100,7 +100,21 @@ Decidido pelo Flavio em 2026-10-24 (nota de voz):
 
 Ordem: 1) limite de pessoa física (feito); 2) a empresa com nível e upgrades; 3) as filiais.
 
-Números ainda a decidir com o Bernardo: o preço de abrir a empresa, o limite por nível, o XP por nível, o preço das filiais e quantas vagas cada uma dá.
+Decidido pelo Flavio e pelo Bernardo em 2026-10-24 (balanceamento):
+
+- **Vans de pessoa física pelo nível de Logística do RLS:** nível 5 libera a 1ª van, 10 a 2ª e 15 a 3ª. Feito (`balance.personalVanUnlocks`). O RLS lê esse nível pelo caminho `careerSkills-logistics` (nível 5 = 1.400 XP, 10 = 5.300, 15 = 13.000, 20 = 26.000).
+- **Nível 20 de Logística** libera a compra do ponto de empresa mais básico (a sede).
+- **Preço da van: média de $7.500**, variando como as concessionárias do RLS. Feito. O RLS sorteia cada anúncio: 98% caem entre 88% e 112% do preço base, 1% vai até 70% e 1% até 130%; depois aplica o índice vivo do mercado de veículos. O Beamazon faz o mesmo: a oferta da próxima van fica no save (recarregar não sorteia de novo) e muda a cada compra.
+- **Exemplo de capacidade da primeira empresa:** 10 vans e 1 caminhão, ou 9 vans e 1 caminhão.
+
+### Roadmap de ideias (Flavio e Bernardo, 2026-10-24)
+
+- **Caminhão pequeno (H-Series), ~$18.000.** Bem mais eficiente que a van: entregas maiores e mais longas, que pagam mais. Não é autônomo: precisa de um **motorista contratado**, com salário proporcional ao que o caminhão rende. Dá para desativar: demite o motorista e o caminhão fica parado no estoque, sem renda e sem custo.
+- **Funcionários.** O RLS tem contratação nos negócios: a oficina de tuning (`business/tuningShop/techs.lua`) contrata e demite técnicos, com vagas que crescem pela árvore de habilidades, mas sem salário e presa à oficina. Não dá para reaproveitar direto; o Beamazon segue o mesmo modelo (vagas pela árvore, contratar, demitir) com o salário próprio dele.
+- **Sedes e filiais em pontos reais do mapa:** só adicionamos um computador (ponto de interação do RLS, com função própria no menu do computador). A primeira sede fica no ponto "Logistics" (`-126.627, 36.444, 122.440`); o prédio de tijolo das Dockyards fica para depois.
+- **Tenda no lugar da barreira** na sede (spawn e esconder em tempo de execução), depois que o computador funcionar.
+
+Ainda a decidir com o Bernardo: o caminhão ocupa uma vaga de van?; o salário do motorista e os números do caminhão; o preço de abrir a empresa; a regra do limite da empresa, (a) por nível ou (b) pela soma das vagas das filiais (o agente recomenda b: o nível libera filiais maiores e upgrades); o XP por nível; o preço das filiais e as vagas de cada uma; se a frota ganha o bônus de pagamento do nível de Logística do jogador (o agente sugere que não: a empresa tem o bônus dela).
 
 ## Integração com o RLS
 

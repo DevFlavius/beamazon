@@ -2,8 +2,13 @@
 -- PLACEHOLDERS: Flavio and Bernardo decide the real values (targets in docs/plano.md, "Economia").
 
 return {
-  vanPrice = 1000,                -- $ per van
-  personalVanLimit = 3,           -- vans the player can own without a company (decided 2026-10-24)
+  vanPrice = 7500,                -- $ average per van (decided 2026-10-24); each offer varies like an RLS dealer listing
+  -- Vans the player can own without a company, unlocked by the RLS Logistics skill level (decided 2026-10-24).
+  personalVanUnlocks = {
+    {level = 5, vans = 1},
+    {level = 10, vans = 2},
+    {level = 15, vans = 3},
+  },
 
   -- A trip: the van loads parcels at the depot, drives the route, delivers and comes back.
   vanCapacitySlots = 24,          -- cargo slots per trip

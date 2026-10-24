@@ -62,7 +62,21 @@ local function loadFleet()
     end
   end
   loaded.savedAt = tonumber(data.savedAt)
+  loaded.vanOffer = tonumber(data.vanOffer)
   return loaded
+end
+
+-- The current van offer as a multiplier of balance.vanPrice, drawn like an RLS dealer listing:
+-- 98% of offers fall in the normal band, 1% in each tail.
+local function rollVanOffer()
+  local range = beamazon_adapter.getVehiclePriceRange()
+  local rand = math.random(0, 1000) / 1000
+  if rand <= 0.01 then
+    return range.tailLow + (range.normalLow - range.tailLow) * (rand / 0.01)
+  elseif rand <= 0.99 then
+    return range.normalLow + (range.normalHigh - range.normalLow) * ((rand - 0.01) / 0.98)
+  end
+  return range.normalHigh + (range.tailHigh - range.normalHigh) * ((rand - 0.99) / 0.01)
 end
 
 local function setLoaded(active)
@@ -71,6 +85,8 @@ local function setLoaded(active)
   offlineSeconds = 0
   if active then
     fleet = loadFleet()
+    -- Saved with the fleet, so reloading the save doesn't draw a new price.
+    fleet.vanOffer = fleet.vanOffer or rollVanOffer()
     if fleet.savedAt then
       offlineSeconds = math.min(math.max(os.time() - fleet.savedAt, 0), balance.offlineCapHours * 3600)
     end
@@ -107,9 +123,28 @@ local function addWorkTime(dt)
   fleet.totals.vanSeconds = fleet.totals.vanSeconds + dt * #fleet.vans
 end
 
--- How many vans the player may own. Without a company this is balance.personalVanLimit.
+-- How many vans the player may own. Without a company the Logistics level unlocks them (balance.personalVanUnlocks).
 local function getVanLimit()
-  return balance.personalVanLimit
+  local level, limit = beamazon_adapter.getLogisticsLevel(), 0
+  for _, unlock in ipairs(balance.personalVanUnlocks) do
+    if level >= unlock.level then limit = math.max(limit, unlock.vans) end
+  end
+  return limit
+end
+
+-- The next personal unlock above the current limit, {level, vans}, or nil when none is left.
+local function getNextVanUnlock()
+  local limit, nextUnlock = getVanLimit(), nil
+  for _, unlock in ipairs(balance.personalVanUnlocks) do
+    if unlock.vans > limit and (not nextUnlock or unlock.level < nextUnlock.level) then nextUnlock = unlock end
+  end
+  return nextUnlock
+end
+
+-- Today's price for a van: the offer times the live RLS vehicle market, in whole dollars.
+local function getVanPrice()
+  local offer = fleet and fleet.vanOffer or 1
+  return math.floor(balance.vanPrice * offer * beamazon_adapter.getVehicleBuyMultiplier() + 0.5)
 end
 
 -- True, or false and the reason: 'careerInactive', 'vanLimit' or 'notEnoughMoney'.
@@ -119,17 +154,18 @@ local function buyVan()
     return false, 'careerInactive'
   end
   if #fleet.vans >= getVanLimit() then
-    log('W', logTag, string.format('buyVan: van limit reached (%d)', getVanLimit()))
+    log('W', logTag, string.format('buyVan: van limit reached (%d at Logistics level %d)', getVanLimit(), beamazon_adapter.getLogisticsLevel()))
     return false, 'vanLimit'
   end
-  local id = fleet.nextVanId
-  if not beamazon_adapter.pay(balance.vanPrice, 'Beamazon: van ' .. id) then
-    log('W', logTag, string.format('buyVan: not enough money for a van ($%s)', tostring(balance.vanPrice)))
+  local id, price = fleet.nextVanId, getVanPrice()
+  if not beamazon_adapter.pay(price, 'Beamazon: van ' .. id) then
+    log('W', logTag, string.format('buyVan: not enough money for a van ($%d)', price))
     return false, 'notEnoughMoney'
   end
   fleet.nextVanId = id + 1
+  fleet.vanOffer = rollVanOffer()
   table.insert(fleet.vans, {id = id, name = 'Van ' .. id, trips = 0, net = 0, tripElapsed = 0})
-  log('I', logTag, string.format('buyVan: Van %d bought for $%s (fleet: %d)', id, tostring(balance.vanPrice), #fleet.vans))
+  log('I', logTag, string.format('buyVan: Van %d bought for $%d (fleet: %d, next offer $%d)', id, price, #fleet.vans, getVanPrice()))
   return true
 end
 
@@ -178,8 +214,8 @@ local function status()
     return nil
   end
   local totals = fleet.totals
-  log('I', logTag, string.format('fleet: %d van(s), %d trip(s), revenue $%.2f, costs $%.2f, net $%.2f',
-    #fleet.vans, totals.trips, totals.revenue, totals.costs, totals.net))
+  log('I', logTag, string.format('fleet: %d/%d van(s) at Logistics level %d, next van $%d, %d trip(s), revenue $%.2f, costs $%.2f, net $%.2f',
+    #fleet.vans, getVanLimit(), beamazon_adapter.getLogisticsLevel(), getVanPrice(), totals.trips, totals.revenue, totals.costs, totals.net))
   local perHour = getNetPerVanHour()
   log('I', logTag, perHour and string.format('  net $%.2f per van-hour over %.1f van-hours', perHour, totals.vanSeconds / 3600)
     or '  net per van-hour: needs 1 van-hour of work')
@@ -216,6 +252,8 @@ M.getVans = getVans
 M.getTotals = getTotals
 M.getNetPerVanHour = getNetPerVanHour
 M.getVanLimit = getVanLimit
+M.getNextVanUnlock = getNextVanUnlock
+M.getVanPrice = getVanPrice
 M.addWorkTime = addWorkTime
 M.buyVan = buyVan
 M.takeOfflineSeconds = takeOfflineSeconds

@@ -13,7 +13,15 @@ Console do jogo: `~`, no modo GE Lua. Para acelerar: `beamazon_fleetSim.setSpeed
 
 ## Crítico (próximo lote)
 
-(vazio)
+### 9. Vans pelo nível de Logística e preço com variação
+
+No save `perfil2`, abra o console e rode `beamazon_fleetManager.status()`.
+
+- **Esperado:** a primeira linha mostra `fleet: X/Y van(s) at Logistics level N, next van $P`. Y é 0 abaixo do nível 5, 1 a partir do 5, 2 a partir do 10 e 3 a partir do 15. P fica perto de $7.500.
+- As vans que você já tem continuam trabalhando, mesmo acima do limite novo. Só a compra é bloqueada.
+- Se o limite deixar, compre uma van pelo celular: o saldo cai exatamente P e o log mostra `next offer $...` com outro preço.
+- Salve, recarregue e rode `status()` de novo: o `next van` é o mesmo de antes do save.
+- No celular, no limite: o botão diz `Logistics level N unlocks a van` (ou `Van limit reached` no nível 15+), com o seu nível embaixo.
 
 ## Não crítico (acumula)
 

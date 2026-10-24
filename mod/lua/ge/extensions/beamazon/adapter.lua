@@ -78,6 +78,37 @@ local function creditTest()
   return addMoney(1, 'Beamazon: adapter test')
 end
 
+-- Progression ------------------------------------------------------------------------------------
+
+-- RLS looks skills up by path id; plain 'logistics' is the domain branch, with other levels and XP.
+local logisticsSkillPathId = 'careerSkills-logistics'
+
+-- The player's Logistics skill level; 0 without an active career.
+local function getLogisticsLevel()
+  if not isCareerActive() or not overhaul_career_progression_skills then return 0 end
+  return tonumber(overhaul_career_progression_skills.getBranchLevel(logisticsSkillPathId)) or 0
+end
+
+-- Vehicle market ---------------------------------------------------------------------------------
+
+-- The bands RLS dealers draw listing prices from, as multipliers of the base price.
+local function getVehiclePriceRange()
+  local calculator = isRlsPresent() and overhaul_career_market_valueCalculator
+  local range = calculator and calculator.getVehicleListingPriceRange and calculator.getVehicleListingPriceRange()
+  if type(range) ~= 'table' then
+    range = {tailLow = 0.70, normalLow = 0.88, normalHigh = 1.12, tailHigh = 1.30}
+  end
+  return range
+end
+
+-- The live vehicle market index RLS applies to every vehicle purchase (1 = normal market).
+local function getVehicleBuyMultiplier()
+  local calculator = isCareerActive() and overhaul_career_market_valueCalculator
+  local multiplier = calculator and calculator.getVehicleBuyMarketMultiplier and tonumber(calculator.getVehicleBuyMarketMultiplier())
+  if not multiplier or multiplier <= 0 or multiplier ~= multiplier then return 1 end
+  return multiplier
+end
+
 -- Deliveries -------------------------------------------------------------------------------------
 
 -- RLS parcel types as plain data: {id, slots = {...}, weights = {...}, chance}.
@@ -151,6 +182,9 @@ M.getMoney = getMoney
 M.addMoney = addMoney
 M.pay = pay
 M.creditTest = creditTest
+M.getLogisticsLevel = getLogisticsLevel
+M.getVehiclePriceRange = getVehiclePriceRange
+M.getVehicleBuyMultiplier = getVehicleBuyMultiplier
 M.getParcelTemplates = getParcelTemplates
 M.getParcelReward = getParcelReward
 M.readSaveFile = readSaveFile
