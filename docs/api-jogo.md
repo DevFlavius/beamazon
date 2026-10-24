@@ -58,7 +58,8 @@ RLS (outros nomes):
 - [x] Antes de gravar, criar a pasta pelo writer do save: `require('overhaul/lib/save/ensureDir').parentOf(writer, caminho)` (`RLS: lua/ge/extensions/overhaul/lib/save/ensureDir.lua:14`). O `writer` vem no hook; sem ele, `overhaul_career_saveSystem.getSaveWriter()` (`RLS: .../career/saveSystem.lua:299`).
 - [x] Ao sair da carreira: `onOverhaulActive(false)` (`RLS: lua/ge/extensions/overhaul/career/start/transitions.lua:711`).
 - [x] Relógio: o `onUpdate` da carreira dispara `onOverhaulCareerSimStep(dtSim)` a cada frame com a carreira ativa (`RLS: .../career/career.lua:396-420`). O `dtSim` para quando o jogo pausa. O `fleetSim` soma esse tempo e só simula a cada 2 s.
-- O `adapter` repassa esses três hooks com nomes próprios (`onBeamazonCareerActive`, `onBeamazonSave`, `onBeamazonSimStep`), então os outros módulos não conhecem o RLS.
+- [x] Antes de gravar: `onOverhaulSaveCurrentProfileAsyncStart()` roda para todas as extensões antes do `onOverhaulSaveCurrentProfile` (`RLS: .../career/saveSystem.lua:1143-1144`). O saldo é gravado no `onOverhaulSaveCurrentProfile` do `playerAttributes` (`RLS: .../career/economy/playerAttributes.lua:743`), então dinheiro creditado no hook anterior entra no save. O Beamazon paga ali o lucro que ainda estava pendente.
+- O `adapter` repassa esses hooks com nomes próprios (`onBeamazonCareerActive`, `onBeamazonBeforeSave`, `onBeamazonSave`, `onBeamazonSimStep`), então os outros módulos não conhecem o RLS.
 
 Onde o mod grava: `<savePath>/career/beamazon.json` nos dois casos. No Linux nativo, o jogo grava os arquivos da pasta do usuário com o nome em minúsculo, então todo arquivo que o mod criar tem nome só em minúsculas. Visto em 2026-10-24: o RLS grava `temp/rls_career/levelcache` mas monta `levelCache` (`RLS: lua/ge/extensions/overhaul/world/levelProxy.lua:14`), e o mapa `rls_west_coast` carrega vazio. O `fleetManager` implementa os dois pares de hooks e o `adapter` diz qual está valendo.
 

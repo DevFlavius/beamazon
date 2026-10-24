@@ -17,4 +17,7 @@ return {
   energyPricePerKwh = 0.40,       -- $
   wearPerKm = 0.15,               -- $
   commission = 0.25,              -- share of the trip revenue
+
+  -- While the player is away, the fleet keeps working up to this many real hours.
+  offlineCapHours = 8,
 }

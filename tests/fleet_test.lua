@@ -4,6 +4,8 @@
 local MOD = MOD_DIR .. '/lua/ge/extensions/'
 package.path = MOD .. '?.lua;' .. package.path
 math.randomseed(42)
+local now = 1000000
+os.time = function() return now end
 local quiet = false
 function log(level, tag, msg) if not quiet or level ~= 'I' then print(level, tag, msg) end end
 function deepcopy(t) if type(t) ~= 'table' then return t end local r = {} for k, v in pairs(t) do r[k] = deepcopy(v) end return r end
@@ -71,6 +73,14 @@ _G.overhaul_career_career_dummy = nil
 overhaul_career_career = {isActive = function() return active end}
 extensions.load = (function(orig) return function(n) if n == 'overhaul_career_career_dummy' then return end orig(n) end end)(extensions.load)
 installRls()
+-- Stands in for RLS playerAttributes. First in hook order: the worst case, it saves the balance before Beamazon's save hook.
+loaded.rls_attributes = {onOverhaulSaveCurrentProfile = function(p) disk[p .. '/career/playerattributes.json'] = {money = money} end}
+table.insert(order, 1, 'rls_attributes')
+local function save(path)
+  extensions.hook('onOverhaulSaveCurrentProfileAsyncStart')
+  extensions.hook('onOverhaulSaveCurrentProfile', path, nil, overhaul_career_saveSystem.getSaveWriter())
+end
+local function totalTrips() local n = 0 for _, v in ipairs(beamazon_fleetManager.getVans()) do n = n + v.trips end return n end
 money = 1500
 extensions.hook('onOverhaulActive', true, false)
 check(beamazon_fleetManager.buyVan() == true and money == 500, 'buyVan charges $1000')
@@ -83,13 +93,19 @@ for _ = 1, 3600 do extensions.hook('onOverhaulCareerSimStep', 1) end
 quiet = false
 local vans = beamazon_fleetManager.getVans()
 check(vans[1].trips > 0 and vans[2].trips > 0, string.format('1 h of sim: trips %d and %d', vans[1].trips, vans[2].trips))
-check(math.abs(money - base - (vans[1].net + vans[2].net)) < 0.01, 'money matches the vans net')
+-- A trip ends right before the save, so its profit is still waiting for the next payout.
+local paidBefore = money
+vans[1].tripElapsed = vans[1].trip.durationS - 1
+extensions.hook('onOverhaulCareerSimStep', 2)
+check(money == paidBefore, 'a finished trip waits for the payout')
+save('/saves/prof/autosave1')
+check(math.abs(money - base - (vans[1].net + vans[2].net)) < 0.01, 'after a save, money matches the vans net')
+check(disk['/saves/prof/autosave1/career/playerattributes.json'].money == money, 'saved balance includes every trip')
 check(ledger[#ledger][3] == 'business', 'ledger category business')
 beamazon_fleetManager.status()
 
 -- 3. save and reload
-extensions.hook('onOverhaulSaveCurrentProfile', '/saves/prof/autosave1', nil, overhaul_career_saveSystem.getSaveWriter())
-check(disk['/saves/prof/autosave1/career/beamazon.json'] ~= nil, 'saved to <savePath>/career/beamazon.json')
+check(disk['/saves/prof/autosave1/career/beamazon.json'].savedAt == now, 'saved to <savePath>/career/beamazon.json with savedAt')
 local before = deepcopy(vans)
 active = false; extensions.hook('onOverhaulActive', false)
 check(#beamazon_fleetManager.getVans() == 0, 'career off: fleet cleared')
@@ -101,8 +117,30 @@ check(beamazon_fleetManager.buyVan() and beamazon_fleetManager.getVans()[3].id =
 
 -- 4. speed and catch-up
 check(beamazon_fleetSim.setSpeed(0) == false and beamazon_fleetSim.setSpeed(60), 'setSpeed validates')
-local t0 = after[1].trips
+local t0, rows0 = after[1].trips, #ledger
 quiet = true; for _ = 1, 60 do extensions.hook('onOverhaulCareerSimStep', 1) end; quiet = false
+check(#ledger - rows0 == 1, 'payouts batched: 1 ledger row for a game minute of trips')
 check(after[1].trips - t0 >= 1, 'x60: 1 game minute = 1 fleet hour, trips ' .. (after[1].trips - t0))
 
+
+-- 5. offline progress
+beamazon_fleetSim.setSpeed(1)
+local function awayFor(hours)
+  save('/saves/prof/autosave1')
+  active = false; extensions.hook('onOverhaulActive', false)
+  now = now + hours * 3600
+  active = true; extensions.hook('onOverhaulActive', true, false)
+  local trips0, rows = totalTrips(), #ledger
+  quiet = true; extensions.hook('onOverhaulCareerSimStep', 2); quiet = false
+  return totalTrips() - trips0, #ledger - rows
+end
+local gained, rows = awayFor(2)
+check(gained >= 6 and gained <= 30, '2 h away with 3 vans: ' .. gained .. ' trips')
+check(rows == 1 and ledger[#ledger][2]:find('offline') ~= nil, 'offline profit is one ledger entry: ' .. ledger[#ledger][2])
+local again = totalTrips(); extensions.hook('onOverhaulCareerSimStep', 2)
+check(totalTrips() - again <= 3, 'offline time is used once')
+gained = awayFor(48)
+check(gained >= 30 and gained <= 120, '48 h away is capped at 8 h: ' .. gained .. ' trips')
+gained = awayFor(-5)
+check(gained <= 3, 'clock moved back: no offline progress')
 print('all checks passed')

@@ -9,8 +9,18 @@ local balance = require('beamazon/balance')
 local saveFileName = 'beamazon.json'
 local saveVersion = 1
 
+-- Trip profits reach the balance in one ledger entry per payoutSeconds (and right before each save).
+local payoutSeconds = 60
+
 -- nil while no career is loaded; the sim only runs when this is set.
 local fleet
+
+-- Real seconds the player was away since the loaded save; fleetSim takes them once.
+local offlineSeconds = 0
+
+-- Trip profits not yet in the balance.
+local pending = {net = 0, trips = 0}
+local payoutTimer = 0
 
 local function newFleet()
   return {
@@ -50,13 +60,20 @@ local function loadFleet()
       loaded.totals[key] = tonumber(data.totals[key]) or 0
     end
   end
+  loaded.savedAt = tonumber(data.savedAt)
   return loaded
 end
 
 local function setLoaded(active)
+  pending = {net = 0, trips = 0}
+  payoutTimer = 0
+  offlineSeconds = 0
   if active then
     fleet = loadFleet()
-    log('I', logTag, string.format('fleet loaded: %d van(s)', #fleet.vans))
+    if fleet.savedAt then
+      offlineSeconds = math.min(math.max(os.time() - fleet.savedAt, 0), balance.offlineCapHours * 3600)
+    end
+    log('I', logTag, string.format('fleet loaded: %d van(s), %.1f h away', #fleet.vans, offlineSeconds / 3600))
   else
     fleet = nil
   end
@@ -88,17 +105,39 @@ local function buyVan()
   return true
 end
 
--- Called by fleetSim when a van finishes a trip: pays the player and keeps the books.
+local function takeOfflineSeconds()
+  local seconds = offlineSeconds
+  offlineSeconds = 0
+  return seconds
+end
+
+-- Puts the pending trip profits in the balance as one ledger entry.
+local function payOut(label)
+  if pending.trips == 0 then return end
+  beamazon_adapter.addMoney(pending.net, string.format('Beamazon: %s (%d)', label or 'fleet deliveries', pending.trips))
+  pending = {net = 0, trips = 0}
+end
+
+-- Called by fleetSim after each tick with the game seconds that passed.
+local function onFleetTick(dt)
+  payoutTimer = payoutTimer + dt
+  if payoutTimer < payoutSeconds then return end
+  payoutTimer = 0
+  payOut()
+end
+
+-- Called by fleetSim when a van finishes a trip: keeps the books; the money goes out in payOut.
 local function recordTrip(van, result)
   local costs = result.energy + result.wear + result.commission
-  beamazon_adapter.addMoney(result.net, 'Beamazon: ' .. van.name)
+  pending.net = pending.net + result.net
+  pending.trips = pending.trips + 1
   van.trips = van.trips + 1
   van.net = van.net + result.net
   fleet.totals.trips = fleet.totals.trips + 1
   fleet.totals.revenue = fleet.totals.revenue + result.revenue
   fleet.totals.costs = fleet.totals.costs + costs
   fleet.totals.net = fleet.totals.net + result.net
-  log('I', logTag, string.format('%s delivered %d parcel(s) over %.1f km: revenue $%.2f, energy $%.2f, wear $%.2f, commission $%.2f, net $%.2f',
+  log('D', logTag, string.format('%s delivered %d parcel(s) over %.1f km: revenue $%.2f, energy $%.2f, wear $%.2f, commission $%.2f, net $%.2f',
     van.name, #van.trip.parcels, van.trip.routeKm, result.revenue, result.energy, result.wear, result.commission, result.net))
 end
 
@@ -124,8 +163,13 @@ local function onBeamazonCareerActive(active)
   setLoaded(active)
 end
 
+local function onBeamazonBeforeSave()
+  payOut()
+end
+
 local function onBeamazonSave(saveContext)
   if not fleet then return end
+  fleet.savedAt = os.time()
   beamazon_adapter.writeSaveFile(saveContext, saveFileName, fleet)
 end
 
@@ -136,9 +180,13 @@ end
 M.ensureLoaded = ensureLoaded
 M.getVans = getVans
 M.buyVan = buyVan
+M.takeOfflineSeconds = takeOfflineSeconds
+M.payOut = payOut
+M.onFleetTick = onFleetTick
 M.recordTrip = recordTrip
 M.status = status
 M.onBeamazonCareerActive = onBeamazonCareerActive
+M.onBeamazonBeforeSave = onBeamazonBeforeSave
 M.onBeamazonSave = onBeamazonSave
 M.onExtensionLoaded = onExtensionLoaded
 

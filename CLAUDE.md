@@ -67,6 +67,11 @@ O MVP (1 van abstrata, compra por console, simulação por timer, pagamento real
 - `beamazon_fleetManager.status()`: mostra a frota no log.
 - `beamazon_fleetSim.setSpeed(60)`: acelera a frota para teste (1 s de jogo = 1 min de frota; não é salvo).
 
+Fase 2, peças que não dependem de balanceamento (2026-10-24, testadas só no RLS simulado):
+
+- **Progresso offline:** o save guarda `savedAt` (hora real). Ao carregar, a frota trabalha o tempo que o jogador ficou fora, até `offlineCapHours` (8 h), e o lucro entra num lançamento só ("offline deliveries").
+- **Pagamento em lote:** o lucro das viagens entra no saldo num lançamento por minuto de jogo e logo antes de cada save. A linha de cada viagem no log ficou no nível `D`.
+
 Todos os números de balanceamento ficam em `mod/lua/ge/extensions/beamazon/balance.lua`. São provisórios até os irmãos decidirem.
 
 Teste da lógica sem o jogo: `cd tests && npm install && npm test` roda os módulos contra um RLS simulado (Lua em JavaScript, `fengari`). Rode depois de cada mudança em `mod/`. Ele não substitui o teste em jogo nem mede balanceamento (a fórmula de pagamento ali é uma cópia, sem a economia viva do RLS).

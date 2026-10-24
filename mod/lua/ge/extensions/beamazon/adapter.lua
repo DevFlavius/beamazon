@@ -2,7 +2,7 @@
 -- When the game or RLS updates, fix it here. Function map with paths and lines: docs/api-jogo.md.
 -- Beamazon is an RLS addon: without RLS it stays loaded but does nothing.
 -- The other modules never see RLS names: they get the relayed hooks onBeamazonCareerActive,
--- onBeamazonSave and onBeamazonSimStep, plus the functions below.
+-- onBeamazonBeforeSave, onBeamazonSave and onBeamazonSimStep, plus the functions below.
 
 local M = {}
 
@@ -121,6 +121,11 @@ local function onOverhaulActive(active)
   extensions.hook('onBeamazonCareerActive', active == true)
 end
 
+-- Runs before any RLS module writes its save files, so money added here is in the saved balance.
+local function onOverhaulSaveCurrentProfileAsyncStart()
+  extensions.hook('onBeamazonBeforeSave')
+end
+
 local function onOverhaulSaveCurrentProfile(savePath, _, writer)
   extensions.hook('onBeamazonSave', {
     savePath = savePath,
@@ -147,6 +152,7 @@ M.getParcelReward = getParcelReward
 M.readSaveFile = readSaveFile
 M.writeSaveFile = writeSaveFile
 M.onOverhaulActive = onOverhaulActive
+M.onOverhaulSaveCurrentProfileAsyncStart = onOverhaulSaveCurrentProfileAsyncStart
 M.onOverhaulSaveCurrentProfile = onOverhaulSaveCurrentProfile
 M.onOverhaulCareerSimStep = onOverhaulCareerSimStep
 M.onExtensionLoaded = onExtensionLoaded

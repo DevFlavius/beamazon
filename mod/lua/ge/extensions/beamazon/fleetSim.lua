@@ -6,15 +6,16 @@ local M = {}
 local logTag = 'beamazon'
 
 local tickSeconds = 2
--- A van whose trip ends mid-tick starts the next one with the leftover time, up to this many trips per tick.
-local maxTripsPerTick = 20
+-- A van whose trip ends mid-advance starts the next one with the leftover time, up to this many trips.
+-- Generous on purpose: the offline catch-up (balance.offlineCapHours) runs in one advance.
+local maxTripsPerAdvance = 500
 
 local speed = 1
 local pendingSeconds = 0
 
 -- Advances one van by dt fleet seconds.
-local function stepVan(van, dt)
-  for _ = 1, maxTripsPerTick do
+local function advanceVan(van, dt)
+  for _ = 1, maxTripsPerAdvance do
     if not van.trip then
       van.trip = beamazon_fleetEconomy.rollTrip()
       van.tripElapsed = 0
@@ -30,15 +31,31 @@ local function stepVan(van, dt)
   end
 end
 
+local function advanceFleet(dt)
+  for _, van in ipairs(beamazon_fleetManager.getVans()) do
+    advanceVan(van, dt)
+  end
+end
+
+-- The work done while the player was away, paid as its own ledger entry.
+local function catchUpOffline()
+  local offline = beamazon_fleetManager.takeOfflineSeconds()
+  if offline <= 0 then return end
+  beamazon_fleetManager.payOut()
+  advanceFleet(offline)
+  beamazon_fleetManager.payOut('offline deliveries')
+  log('I', logTag, string.format('offline progress: %.1f h', offline / 3600))
+end
+
 local function onBeamazonSimStep(dtSim)
   pendingSeconds = pendingSeconds + (dtSim or 0)
   if pendingSeconds < tickSeconds then return end
-  local dt = pendingSeconds * speed
+  local elapsed = pendingSeconds
   pendingSeconds = 0
   if not beamazon_fleetManager.ensureLoaded() then return end
-  for _, van in ipairs(beamazon_fleetManager.getVans()) do
-    stepVan(van, dt)
-  end
+  catchUpOffline()
+  advanceFleet(elapsed * speed)
+  beamazon_fleetManager.onFleetTick(elapsed)
 end
 
 local function setSpeed(value)
