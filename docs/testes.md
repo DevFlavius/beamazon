@@ -28,6 +28,13 @@ Ctrl+L, depois no console: `beamazon_fleetManager.status()`. Cada van mostra `(i
 - Toque duas vezes: a van some, o saldo sobe exatamente $X, e o log mostra `sellVan: Van N sold for $X`.
 - Salve e recarregue: a van vendida não volta.
 
+### 11. Rendimento de ~$5.000 por van-hora
+
+Ctrl+L, depois no console: `beamazon_fleetSim.setSpeed(60)` e espere 3 ou 4 minutos (cada minuto real = 1 hora de frota).
+
+- **Esperado:** cada linha `addMoney` (uma por minuto) fica perto de $5.000 por van (com 3 vans, ~$15.000; varia bastante de um minuto para o outro).
+- Depois volte com `beamazon_fleetSim.setSpeed(1)`. O `status()` ainda mistura as horas antigas a $193, então o "per van-hour" dele sobe devagar; confira pelas linhas `addMoney`.
+
 ## Não crítico (acumula)
 
 (vazio)

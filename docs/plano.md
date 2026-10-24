@@ -107,6 +107,7 @@ Decidido pelo Flavio e pelo Bernardo em 2026-10-24 (balanceamento):
 - **Vans de pessoa física pelo nível de Logística do RLS:** nível 5 libera a 1ª van, 10 a 2ª e 15 a 3ª. Feito (`balance.personalVanUnlocks`). O RLS lê esse nível pelo caminho `careerSkills-logistics` (nível 5 = 1.400 XP, 10 = 5.300, 15 = 13.000, 20 = 26.000).
 - **Nível 20 de Logística** libera a compra do ponto de empresa mais básico (a sede).
 - **Preço da van: média de $7.500**, variando como as concessionárias do RLS. Feito. O RLS sorteia cada anúncio: 98% caem entre 88% e 112% do preço base, 1% vai até 70% e 1% até 130%; depois aplica o índice vivo do mercado de veículos. O Beamazon faz o mesmo: a oferta da próxima van fica no save (recarregar não sorteia de novo) e muda a cada compra.
+- **Rendimento: ~$5.000 por van por hora real** (Flavio, 2026-10-24: com a sede a $80.000 e a van a $7.500, menos que isso não compensa). Feito com `balance.fleetPayMultiplier` = 25 sobre o que o RLS pagaria a um motorista (antes: $193 por van-hora medido em jogo). A van se paga em ~1,5 h, e a sede com 5 vans em ~5 h. Risco aceito pelo Flavio: uma van rende perto do que o jogador ganha dirigindo; acompanhar em jogo.
 - **Exemplo de capacidade da primeira empresa:** 10 vans e 1 caminhão, ou 9 vans e 1 caminhão.
 
 ### Roadmap de ideias (Flavio e Bernardo, 2026-10-24)

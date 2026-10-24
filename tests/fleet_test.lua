@@ -93,6 +93,13 @@ local function save(path)
 end
 local function totalTrips() local n = 0 for _, v in ipairs(beamazon_fleetManager.getVans()) do n = n + v.trips end return n end
 extensions.hook('onOverhaulActive', true, false)
+do
+  local balance = require('beamazon/balance')
+  local trip = beamazon_fleetEconomy.rollTrip()
+  local function revenueAt(k) balance.fleetPayMultiplier = k return beamazon_fleetEconomy.settleTrip(trip).revenue end
+  local one, scaled = revenueAt(1), revenueAt(25)
+  check(math.abs(scaled - one * 25) < 0.05 and scaled > 0, string.format('pay multiplier: $%.2f x25 = $%.2f', one, scaled))
+end
 local fm = beamazon_fleetManager
 local function limitAt(level) logisticsLevel = level return fm.getVanLimit() end
 check(limitAt(0) == 0 and limitAt(4) == 0 and limitAt(5) == 1 and limitAt(9) == 1 and limitAt(10) == 2 and limitAt(15) == 3 and limitAt(40) == 3,

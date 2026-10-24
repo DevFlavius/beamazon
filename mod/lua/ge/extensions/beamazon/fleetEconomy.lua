@@ -56,7 +56,7 @@ local function settleTrip(trip)
   local revenue, driverXp = 0, 0
   for _, parcel in ipairs(trip.parcels) do
     local parcelMoney, parcelXp = beamazon_adapter.getParcelReward(parcel.slots, parcel.rewardWeight, trip.routeKm * 1000)
-    revenue = revenue + (parcelMoney or 0)
+    revenue = revenue + (parcelMoney or 0) * balance.fleetPayMultiplier
     driverXp = driverXp + (parcelXp or 0)
   end
   local energy = trip.drivenKm * balance.energyKwhPerKm * balance.energyPricePerKwh

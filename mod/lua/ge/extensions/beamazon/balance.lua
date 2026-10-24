@@ -19,6 +19,10 @@ return {
   avgSpeedKmh = 35,               -- covers the route out and back
   handlingMinutesPerParcel = 1,
 
+  -- Multiplies what RLS would pay a driver for the van's parcels. Target (decided 2026-10-24): ~$5,000 net per
+  -- van per real hour. At 1 the fleet measured $193 net per van-hour in game, so 25 lands near the target.
+  fleetPayMultiplier = 25,
+
   -- Costs, per km driven (out and back) or per trip.
   energyKwhPerKm = 0.25,
   energyPricePerKwh = 0.40,       -- $
