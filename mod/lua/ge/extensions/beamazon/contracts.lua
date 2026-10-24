@@ -11,6 +11,38 @@ local function state()
   return beamazon_fleetManager and beamazon_fleetManager.getContractState() or nil
 end
 
+-- Accepts the current contract offer.
+local function accept()
+  local s = state()
+  if not s then
+    return false, 'noOffer'
+  end
+  if s.active then
+    return false, 'alreadyActive'
+  end
+  if not s.offer then
+    return false, 'noOffer'
+  end
+  local active = s.offer
+  active.done = 0
+  active.left = active.seconds
+  s.active = active
+  s.offer = nil
+  log('I', logTag, string.format('contract accepted: %s, %d trips in %d h', active.client, active.trips, math.floor(active.seconds / 3600)))
+  return true
+end
+
+-- Declines the current contract offer.
+local function decline()
+  local s = state()
+  if not s or not s.offer then
+    return false, 'noOffer'
+  end
+  log('I', logTag, string.format('contract declined: %s', s.offer.client))
+  s.offer = nil
+  return true
+end
+
 -- Generates a new contract offer if the fleet has at least 1 vehicle.
 local function rollOffer()
   local s = state()
@@ -22,7 +54,8 @@ local function rollOffer()
   local maxH = balance.contractHoursMax or 3
   local hours = math.random(minH, maxH)
   local seconds = hours * 3600
-  local bonus = trips * (balance.contractBonusPerTrip or 400)
+  local bonusMult = 1 + (beamazon_company and beamazon_company.getEffect('contractBonus') or 0)
+  local bonus = math.floor(trips * (balance.contractBonusPerTrip or 400) * bonusMult)
   local penalty = math.floor(bonus * (balance.contractPenaltyShare or 0.2))
   local clients = balance.contractClients or {'Spearleaf Logistics'}
   local client = clients[math.random(1, #clients)]
@@ -37,10 +70,19 @@ local function rollOffer()
     penalty = penalty,
   }
   s.offer = offer
-  local msg = string.format('New contract from %s: %d trips in %d h for $%d. Open the phone to accept.', client, trips, hours, bonus)
-  log('I', logTag, msg)
-  if guihooks and guihooks.trigger then
-    guihooks.trigger('toastrMsg', {type = 'info', title = 'Beamazon', msg = msg})
+  if beamazon_company and beamazon_company.hasAutoContracts() and not s.active then
+    accept()
+    local msg = string.format('Your sales team signed a contract with %s.', client)
+    log('I', logTag, msg)
+    if guihooks and guihooks.trigger then
+      guihooks.trigger('toastrMsg', {type = 'info', title = 'Beamazon', msg = msg})
+    end
+  else
+    local msg = string.format('New contract from %s: %d trips in %d h for $%d. Open the phone to accept.', client, trips, hours, bonus)
+    log('I', logTag, msg)
+    if guihooks and guihooks.trigger then
+      guihooks.trigger('toastrMsg', {type = 'info', title = 'Beamazon', msg = msg})
+    end
   end
   return offer
 end
@@ -118,38 +160,6 @@ local function onTrip(van)
   if s.active.done >= s.active.trips then
     complete()
   end
-end
-
--- Accepts the current contract offer.
-local function accept()
-  local s = state()
-  if not s then
-    return false, 'noOffer'
-  end
-  if s.active then
-    return false, 'alreadyActive'
-  end
-  if not s.offer then
-    return false, 'noOffer'
-  end
-  local active = s.offer
-  active.done = 0
-  active.left = active.seconds
-  s.active = active
-  s.offer = nil
-  log('I', logTag, string.format('contract accepted: %s, %d trips in %d h', active.client, active.trips, math.floor(active.seconds / 3600)))
-  return true
-end
-
--- Declines the current contract offer.
-local function decline()
-  local s = state()
-  if not s or not s.offer then
-    return false, 'noOffer'
-  end
-  log('I', logTag, string.format('contract declined: %s', s.offer.client))
-  s.offer = nil
-  return true
 end
 
 -- Contract view for the phone app.
