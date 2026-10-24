@@ -184,7 +184,7 @@ Atualizado em 2026-10-24. As fases 0 a 3 do plano original viraram os blocos "Fe
 
 1. **Exploração (fase 0):** API do jogo e do RLS mapeada em `docs/api-jogo.md`.
 2. **MVP (fase 1):** compra de van, entregas abstratas, pagamento no saldo, save. Testado em jogo.
-3. **Peças da fase 2:** progresso offline (teto de 8 h), pagamento em lote, lucro por van-hora, um pouco de XP de Logística. Testado em jogo.
+3. **Peças da fase 2:** progresso offline (teto de 8 h, baixado para 2 h em 2026-10-24), pagamento em lote, lucro por van-hora, um pouco de XP de Logística. Testado em jogo.
 4. **App no celular (fase 3, v1):** frota, progresso das viagens, botão de compra. Testado em jogo.
 5. **Balanceamento, rodada 1:** vans pelo nível de Logística (5, 10, 15) e preço médio de $7.500 com o sorteio e o mercado do RLS. Testado em jogo (falta o item 9b).
 

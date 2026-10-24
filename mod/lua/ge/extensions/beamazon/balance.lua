@@ -33,5 +33,5 @@ return {
   fleetXpShare = 0.02,
 
   -- While the player is away, the fleet keeps working up to this many real hours.
-  offlineCapHours = 8,
+  offlineCapHours = 2,             -- lowered from 8 (Flavio, 2026-10-24): at ~$5,000 per van-hour, 8 h paid up to $120,000 with 3 vans
 }

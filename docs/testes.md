@@ -35,6 +35,12 @@ Ctrl+L, depois no console: `beamazon_fleetSim.setSpeed(60)` e espere 3 ou 4 minu
 - **Esperado:** cada linha `addMoney` (uma por minuto) fica perto de $5.000 por van (com 3 vans, ~$15.000; varia bastante de um minuto para o outro).
 - Depois volte com `beamazon_fleetSim.setSpeed(1)`. O `status()` ainda mistura as horas antigas a $193, então o "per van-hour" dele sobe devagar; confira pelas linhas `addMoney`.
 
+### 12. Teto offline de 2 h
+
+Salve, feche o jogo e volte depois de mais de 2 horas (pode ser no dia seguinte).
+
+- **Esperado:** o log mostra `fleet loaded: N van(s), 2.0 h away` (nunca mais que 2.0) e um lançamento `offline deliveries` de ~$10.000 por van.
+
 ## Não crítico (acumula)
 
 (vazio)

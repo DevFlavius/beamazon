@@ -77,7 +77,7 @@ O MVP (1 van abstrata, compra por console, simulação por timer, pagamento real
 
 Fase 2, peças que não dependem de balanceamento (2026-10-24, testadas só no RLS simulado):
 
-- **Progresso offline:** o save guarda `savedAt` (hora real). Ao carregar, a frota trabalha o tempo que o jogador ficou fora, até `offlineCapHours` (8 h), e o lucro entra num lançamento só ("offline deliveries").
+- **Progresso offline:** o save guarda `savedAt` (hora real). Ao carregar, a frota trabalha o tempo que o jogador ficou fora, até `offlineCapHours` (2 h; era 8 h até a frota passar a render ~$5.000 por van-hora), e o lucro entra num lançamento só ("offline deliveries").
 - **Pagamento em lote:** o lucro das viagens entra no saldo num lançamento por minuto de jogo e logo antes de cada save. A linha de cada viagem no log ficou no nível `D`.
 
 Fase 3, primeira versão (2026-10-24, compilada e testada só fora do jogo): app "Beamazon" no celular do RLS, instalado pela App Store. Mostra a frota (vans, entregas, lucro), cada van com o progresso da viagem, e tem o botão de comprar van. Lua em `phoneApp.lua`, tela em `mod/ui/ui-vue/mods/beamazon/PhoneBeamazon.vue`.

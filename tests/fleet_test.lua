@@ -185,7 +185,7 @@ check(rows == 1 and ledger[#ledger][2]:find('offline') ~= nil, 'offline profit i
 local again = totalTrips(); extensions.hook('onOverhaulCareerSimStep', 2)
 check(totalTrips() - again <= 3, 'offline time is used once')
 gained = awayFor(48)
-check(gained >= 30 and gained <= 120, '48 h away is capped at 8 h: ' .. gained .. ' trips')
+check(gained >= 6 and gained <= 30, '48 h away is capped at 2 h: ' .. gained .. ' trips')
 gained = awayFor(-5)
 check(gained <= 3, 'clock moved back: no offline progress')
 
