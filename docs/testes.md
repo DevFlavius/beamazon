@@ -36,6 +36,18 @@ No save com a sede. Dê XP de empresa para testar: rode a frota acelerada (`beam
 
 - **Esperado:** cada compra aparece como um lançamento no extrato. Depois do recarregamento, a melhoria, o motorista e o caminhão continuam lá. Nenhuma linha `E` no log.
 
+### 19. Desgaste, quebra e revisão
+
+No save com pelo menos 1 van na frota.
+
+1. No console, force o desgaste de uma van para testar a quebra: `beamazon_fleetManager.getVans()[1].condition = 0.1`.
+2. Acelere a frota no console: `beamazon_fleetSim.setSpeed(60)` e aguarde uma viagem terminar para ocorrer a quebra.
+3. Observe no log (`status()`) e no celular o aviso de quebra e o tempo restante de reparo (`Broken down · N min` em vermelho).
+4. No console ou pelo celular, revise a van: `beamazon_fleetManager.serviceVan(beamazon_fleetManager.getVans()[1].id)` ou toque em "Service" / "Service all" no app.
+5. Salve o jogo e recarregue (Ctrl+L), depois confira com `beamazon_fleetManager.status()`.
+
+- **Esperado:** os custos de reparo da quebra e de revisão aparecem como lançamentos no extrato bancário do RLS. A van quebrada fica parada sem realizar viagens até o reparo terminar. A condição e o tempo restante de reparo são preservados no save/recarregamento. Nenhuma linha `E` no log.
+
 ## Não crítico (acumula)
 
 ### 15. Celular: abas Frota / Empresa / Melhorias
