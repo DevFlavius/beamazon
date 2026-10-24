@@ -28,6 +28,9 @@
           <div><span>Trips</span><strong>{{ data.totals?.trips ?? 0 }}</strong></div>
           <div><span>Profit</span><strong>{{ money(data.totals?.net ?? 0) }}</strong></div>
         </div>
+        <button v-if="data.serviceAllCost > 0" class="service-all-button" type="button" :disabled="busy" @click="act('serviceAll', 'All vehicles serviced.')">
+          Service all · {{ money(data.serviceAllCost) }}
+        </button>
         <div v-if="!data.company?.hq && data.company" class="rate">Logistics level {{ data.company.hqUnlockLevel }} lets you buy the company HQ ({{ money(data.company.hqPrice) }})</div>
         <div v-if="typeof data.netPerVanHour === 'number'" class="rate">{{ money(data.netPerVanHour) }} profit per van-hour</div>
 
@@ -51,16 +54,26 @@
               <strong>{{ money(van.net) }}</strong>
             </div>
             <div class="card-status">
-              <span v-if="van.kind === 'truck' && !van.driver">Parked · no driver</span>
+              <span v-if="van.brokenMinutes > 0" class="status-broken">Broken down · {{ van.brokenMinutes }} min</span>
+              <span v-else-if="van.kind === 'truck' && !van.driver">Parked · no driver</span>
               <span v-else-if="van.onTrip">{{ van.parcels }} parcel{{ van.parcels === 1 ? '' : 's' }} · {{ van.routeKm.toFixed(1) }} km<template v-if="van.driver"> · {{ van.driver }}</template></span>
               <span v-else>Loading at the depot</span>
               <span>{{ van.trips }} trip{{ van.trips === 1 ? '' : 's' }}</span>
             </div>
             <div class="progress"><div class="progress-fill" :style="{ width: Math.round(van.progress * 100) + '%' }"></div></div>
-            <button class="small-button" type="button" :class="{ confirm: confirmId === 'sell' + van.id }" :disabled="busy" @click="confirm('sell' + van.id, () => sellVan(van))">
-              <template v-if="confirmId === 'sell' + van.id">Tap again to sell for {{ money(van.sellValue) }}</template>
-              <template v-else>Sell · {{ money(van.sellValue) }}</template>
-            </button>
+            <div class="condition-bar-wrap">
+              <div class="condition-label">Condition {{ van.condition }}%</div>
+              <div class="condition-bar"><div class="condition-fill" :class="conditionClass(van.condition)" :style="{ width: van.condition + '%' }"></div></div>
+            </div>
+            <div class="card-buttons">
+              <button v-if="van.condition < 100" class="small-button service" type="button" :disabled="busy" @click="act(`serviceVan(${Number(van.id)})`, `${van.name} serviced.`)">
+                Service {{ money(van.serviceCost) }}
+              </button>
+              <button class="small-button" type="button" :class="{ confirm: confirmId === 'sell' + van.id }" :disabled="busy" @click="confirm('sell' + van.id, () => sellVan(van))">
+                <template v-if="confirmId === 'sell' + van.id">Tap again to sell for {{ money(van.sellValue) }}</template>
+                <template v-else>Sell · {{ money(van.sellValue) }}</template>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -150,6 +163,7 @@
             <div class="row"><span>Wear</span><span>{{ money(historyTotals.wear) }}</span></div>
             <div class="row"><span>Commission</span><span>{{ money(historyTotals.commission) }}</span></div>
             <div class="row"><span>Driver wages</span><span>{{ money(historyTotals.wages) }}</span></div>
+            <div class="row"><span>Repairs and service</span><span>{{ money(historyTotals.repairs) }}</span></div>
             <div class="row"><span>Purchases and sales</span><span>{{ money(historyTotals.purchases) }}</span></div>
             <div class="row"><strong>Net</strong><strong>{{ money(historyTotals.net) }}</strong></div>
           </div>
@@ -188,7 +202,7 @@ import { vBngUiNavScroll } from "@/common/directives"
 
 const refreshMs = 2000
 
-const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, logisticsLevel: 0, nextVanUnlock: null, company: null, totals: null, netPerVanHour: null, vans: [], history: [], historyTotals: null })
+const data = reactive({ active: false, vanPrice: 0, vanLimit: 0, logisticsLevel: 0, nextVanUnlock: null, company: null, totals: null, netPerVanHour: null, vans: [], serviceAllCost: 0, history: [], historyTotals: null })
 const loaded = ref(false)
 const busy = ref(false)
 const message = ref("")
@@ -229,8 +243,16 @@ const historyTotals = computed(() => data.historyTotals || {
   commission: 0,
   wages: 0,
   purchases: 0,
+  repairs: 0,
   net: 0,
 })
+
+function conditionClass(condition) {
+  const val = Number(condition) || 0
+  if (val >= 70) return "good"
+  if (val >= 40) return "warn"
+  return "bad"
+}
 const hasDeliveries = computed(() => history.value.length > 0 && (data.historyTotals?.trips ?? 0) > 0)
 const hasNegative = computed(() => history.value.some((b) => (Number(b.net) || 0) < 0))
 
@@ -297,6 +319,7 @@ function apply(payload) {
   data.totals = payload.totals ?? null
   data.netPerVanHour = payload.netPerVanHour ?? null
   data.vans = payload.vans ?? []
+  data.serviceAllCost = payload.serviceAllCost ?? 0
   data.history = payload.history ?? []
   data.historyTotals = payload.historyTotals ?? null
   if (!data.company?.hq && tab.value !== "fleet" && tab.value !== "finances") {
@@ -314,7 +337,8 @@ const errors = {
   careerInactive: "Career not active.",
   vanLimit: "The fleet is full.",
   noCompany: "You need the company HQ.",
-  noVan: "That vehicle is no longer in the fleet.",
+  noVan: "Vehicle not found.",
+  alreadyNew: "Already in perfect condition.",
   driverSlots: "No free driver slot: buy the Hire Drivers upgrade.",
   noDriver: "That driver already left.",
   notEnoughXp: "Not enough company XP.",
@@ -572,11 +596,73 @@ onUnmounted(() => {
   font-size: 0.8rem;
 }
 
+.status-broken {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.condition-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.condition-label {
+  font-size: 0.72rem;
+  color: #d8d8d8;
+}
+
+.condition-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.condition-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+
+  &.good {
+    background: #22c55e;
+  }
+
+  &.warn {
+    background: #f59e0b;
+  }
+
+  &.bad {
+    background: #ef4444;
+  }
+}
+
+.card-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .progress {
   height: 4px;
   border-radius: 2px;
   background: rgba(255, 255, 255, 0.12);
   overflow: hidden;
+}
+
+.service-all-button {
+  flex: 0 0 auto;
+  min-height: 28px;
+  border: 1px solid rgba(34, 197, 94, 0.5);
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.18);
+  color: #bfe5b9;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+
+  &:disabled {
+    opacity: 0.6;
+  }
 }
 
 .route-button {
@@ -599,6 +685,12 @@ onUnmounted(() => {
   font: inherit;
   font-size: 0.75rem;
   padding: 3px 8px;
+
+  &.service {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.5);
+    color: #bfe5b9;
+  }
 
   &.buy {
     justify-self: stretch;
