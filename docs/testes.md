@@ -54,6 +54,14 @@ Com a frota rodando acelerada, observe o nível na aba Empresa.
 
 - **Esperado:** o XP sobe com o lucro (1 XP a cada $100). Ao passar de 500 XP, aparece o aviso `Your company reached level 2.`
 
+### 17. Celular: aba Finances
+
+Abra o app Beamazon (com ou sem sede) e toque na aba Finances.
+
+- **Esperado:** a aba Finances está sempre disponível na barra de abas (sem a sede, a barra mostra Fleet e Finances).
+  - Sem entregas na frota, exibe o aviso `No deliveries yet.`.
+  - Com entregas feitas, exibe o cartão `Last 24 h` com os totais (Revenue, Energy, Wear, Commission, Driver wages, Vehicles bought/sold, Net) e o gráfico de barras do lucro líquido de cada hora com o horário embaixo (ex: `14h`), barras positivas em verde e negativas em vermelho.
+
 ## Antes do release
 
 ### 7. Sem o RLS
