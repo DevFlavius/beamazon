@@ -59,6 +59,17 @@ No save com a sede já fundada.
 
 - **Esperado:** $60.000 cobrados como lançamento no extrato bancário do RLS (`Beamazon: Beamazon Dockyards`), limite da frota sobe +4 vagas, e a filial comprada continua lá após o save e recarregamento. No local aparecem a mesa de escritório e o notebook ligado. Flavio: por favor avalie se a posição ficou ruim em jogo (atravessando parede, bloqueando a rua, etc.). Nenhuma linha `E` no log.
 
+### 21. Melhorias por veículo
+
+No save com pelo menos um veículo na frota.
+
+1. No celular, na aba Frota, toque no botão "Upgrades" em um cartão de veículo e compre a melhoria Route Computer; ou pelo console: `beamazon_fleetManager.upgradeVehicle(beamazon_fleetManager.getVans()[1].id, 'routing')`.
+2. Observe o nível atualizado no cartão (ex: `Lv 1/3`) e confira o extrato bancário do RLS.
+3. Salve o jogo e recarregue (Ctrl+L), depois confira com `beamazon_fleetManager.status()`.
+4. Confira o valor de venda do veículo no cartão ou via `beamazon_fleetManager.getSellValue(...)`.
+
+- **Esperado:** o valor da melhoria é cobrado como um lançamento no extrato bancário do RLS (`Beamazon: <veículo> Route Computer 1`), o nível aparece no cartão da van, a melhoria e o valor gasto sobrevivem ao save e recarregamento, e o valor de venda do veículo aumenta em metade do valor gasto em melhorias. Nenhuma linha `E` no log.
+
 ## Não crítico (acumula)
 
 ### 15. Celular: abas Frota / Empresa / Melhorias
