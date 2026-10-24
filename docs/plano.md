@@ -190,12 +190,13 @@ Atualizado em 2026-10-24. As fases 0 a 3 do plano original viraram os blocos "Fe
 
 ### Próximo: a empresa (decidido, falta fazer)
 
-6. **Venda de van:** 85% do preço pago, vezes o mercado do RLS. Feito; falta o teste em jogo.
+6. **Venda de van:** 85% do preço pago, vezes o mercado do RLS. Feito e testado em jogo.
 7. **Sede (a sede é a empresa):** o nível 20 de Logística libera a compra; **$80.000** (Flavio, 2026-10-24, na faixa do Mini Mart do RLS, $75.000); meta de **~$6.500 por hora real** (no RLS com dia de 60 min, 1 hora real = 1 dia no jogo); computador no ponto "Logistics"; umas 5 vagas; vaga é vaga (van ou caminhão).
-8. **XP e árvore de habilidades da empresa:** a frota dá XP à empresa; a árvore libera motoristas, vagas e eficiência.
-9. **Caminhão H-Series (~$18.000) e motoristas:** entregas maiores e mais longas (a barra de progresso dele enche mais devagar, mas cada viagem paga bem mais, para compensar); cada caminhão precisa de um motorista com salário; sem motorista, fica parado sem custo.
+8. **XP e árvore de habilidades da empresa:** a frota dá XP à empresa; a árvore libera motoristas, vagas e eficiência. Feito na noite de 2026-10-24 (números provisórios em `balance.lua` e `companyTree.lua`), com abas Empresa e Melhorias no celular; falta o teste em jogo.
+9. **Caminhão H-Series (~$18.000) e motoristas:** entregas maiores e mais longas (a barra de progresso dele enche mais devagar, mas cada viagem paga bem mais, para compensar); cada caminhão precisa de um motorista com salário; sem motorista, fica parado sem custo. Feito na noite de 2026-10-24 (salário = 30% da receita da viagem, provisório); falta o teste em jogo.
 10. **Filiais:** outros pontos do mapa (as Dockyards primeiro), cada uma com as suas vagas.
-11. **Tenda na sede**, no lugar da barreira.
+11. **Tenda na sede**, no lugar da barreira. Primeiro passo feito: mesa de escritório e notebook ligado ao lado do ponto.
+- **Extra (noite de 2026-10-24):** aba Finanças no celular, com receita, custos e lucro por hora das últimas 24 h.
 
 ### Depois (do plano original, ainda sem decisão)
 
