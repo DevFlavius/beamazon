@@ -23,7 +23,42 @@ local function company()
   if type(c.upgrades) ~= 'table' then c.upgrades = {} end
   if type(c.drivers) ~= 'table' then c.drivers = {} end
   c.nextDriverId = tonumber(c.nextDriverId) or 1
+  if type(c.settings) ~= 'table' then
+    c.settings = {autoService = true, autoContracts = true}
+  else
+    if type(c.settings.autoService) ~= 'boolean' then c.settings.autoService = true end
+    if type(c.settings.autoContracts) ~= 'boolean' then c.settings.autoContracts = true end
+  end
   return c
+end
+
+-- Settings table for company automation.
+local function getSettings()
+  local c = company()
+  return c and c.settings or nil
+end
+
+-- Sets an automation setting ('autoService' or 'autoContracts') to a boolean value.
+local function setSetting(name, value)
+  local c = company()
+  if not c then return false, 'noCompany' end
+  if (name ~= 'autoService' and name ~= 'autoContracts') or type(value) ~= 'boolean' then
+    return false, 'unknown'
+  end
+  c.settings[name] = value
+  return true
+end
+
+-- True when the Fleet Manager upgrade is bought and autoService setting is true.
+local function hasAutoService()
+  local c = company()
+  return c ~= nil and getEffect('autoService') >= 1 and c.settings.autoService == true
+end
+
+-- True when the Sales Team upgrade is bought and autoContracts setting is true.
+local function hasAutoContracts()
+  local c = company()
+  return c ~= nil and getEffect('autoContracts') >= 1 and c.settings.autoContracts == true
 end
 
 local function getUpgradeLevel(id)
@@ -212,6 +247,10 @@ M.addXp = addXp
 M.canBuy = canBuy
 M.buyUpgrade = buyUpgrade
 M.getTreeView = getTreeView
+M.getSettings = getSettings
+M.setSetting = setSetting
+M.hasAutoService = hasAutoService
+M.hasAutoContracts = hasAutoContracts
 M.getDriverSlots = getDriverSlots
 M.getDrivers = getDrivers
 M.getDriverWageShare = getDriverWageShare
